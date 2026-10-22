@@ -172,12 +172,18 @@ def inject_theme() -> None:
     st.markdown(f"""
 <style>
 [data-testid="stAppViewContainer"] {{
-  background-color: #F4F7F6;
-  background-image: url("{bg}");
-  background-repeat: no-repeat;
-  background-position: right -40px bottom -20px;
-  background-size: min(1250px, 100vw) auto;
+  background-color: #CBD3D3;
+  background-image: url("{bg}"),
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 2px, rgba(0,0,0,0.03) 2px 4px),
+    linear-gradient(180deg, #E2E7E7 0%, #CDD5D5 55%, #BAC5C5 100%);
+  background-repeat: no-repeat, repeat, no-repeat;
+  background-position: right -40px bottom -20px, 0 0, 0 0;
+  background-size: min(1250px, 100vw) auto, auto, cover;
   background-attachment: fixed;
+}}
+[data-testid="stSidebar"] {{
+  background: linear-gradient(180deg, #EBEFEF 0%, #D7DEDE 100%);
+  border-right: 1px solid #B6C2C2;
 }}
 [data-testid="stHeader"] {{ background: transparent; }}
 [data-testid="stMetric"] {{

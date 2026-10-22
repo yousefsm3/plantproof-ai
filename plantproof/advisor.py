@@ -20,6 +20,7 @@ from typing import Any, Iterable
 
 from .cost_model import estimate, format_money
 from .domain import AnalysisResult, EngineConfig, Observation
+from .handover import build_handover
 from .evidence_engine import analyse
 from .translations import ar
 from .whatif import EVIDENCE_TEMPLATES, WhatIfChange, apply_changes
@@ -45,6 +46,7 @@ class AdvisorAnswer:
     items: list[AdvisorItem]
     note_en: str = ""
     note_ar: str = ""
+    attachment: Any = None      # e.g. a Handover the page can save or download
 
     def to_dict(self) -> dict[str, Any]:
         return {"intent": self.intent, "title_en": self.title_en, "title_ar": self.title_ar,
@@ -273,8 +275,95 @@ def action_plan(observations, config: EngineConfig, analysis: AnalysisResult,
                          DISCLAIMER_EN, DISCLAIMER_AR)
 
 
+# ------------------------------------------------------------------ handover
+HYPOTHESIS_WORDS = {
+    "sensor_fault": ("sensor", "transmitter", "حساس", "الحساس", "المرسل"),
+    "bearing_wear": ("bearing", "محمل", "المحمل", "رولمان", "بيرنق"),
+    "misalignment": ("alignment", "misalign", "محاذاة", "المحاذاة", "استقامة"),
+    "cavitation": ("cavitation", "تكهف", "تكهّف", "فقاعات"),
+}
+DONE_WORDS = ("all solutions", "all actions", "fixed", "resolved", "done", "completed",
+              "جميع الحلول", "كل الحلول", "تم حل", "تم إصلاح", "تم اصلاح", "انتهى", "خلصنا", "تم أخذ", "تم اخذ")
+
+
+def _mentioned_hypotheses(text: str) -> list[str]:
+    t = text.lower()
+    return [h for h, words in HYPOTHESIS_WORDS.items() if any(w in t for w in words)]
+
+
+def handover_note(question: str, config: EngineConfig, analysis: AnalysisResult,
+                  meta: dict[str, Any], costs: dict[str, Any]) -> AdvisorAnswer:
+    """Draft a shift handover from the evidence plus the engineer's own note,
+    and flag where the note disagrees with the evidence."""
+    top = analysis.top
+    items: list[AdvisorItem] = []
+    note = question.strip()[:600]
+    items.append(AdvisorItem(f"Your note is recorded: \"{note}\"",
+                             f"سُجّلت ملاحظتك: «{note}»", [], "info"))
+
+    mentioned = _mentioned_hypotheses(note)
+    if top is not None:
+        for hid in mentioned:
+            h = config.hypothesis(hid)
+            if hid == top.hypothesis_id:
+                items.append(AdvisorItem(
+                    f"Consistent with the evidence: {h.name} is the leading hypothesis "
+                    f"({top.confidence:.0%}).",
+                    f"متوافق مع الأدلة: {_name_ar(h.name)} هي الفرضية الأقوى ({top.confidence:.0%}).",
+                    top.record_ids[:6], "pass"))
+            else:
+                a = analysis.assessment(hid)
+                items.append(AdvisorItem(
+                    f"Check this: your note mentions {h.name} ({a.confidence:.0%}), but the evidence "
+                    f"points to {top.name} ({top.confidence:.0%}).",
+                    f"انتبه: ملاحظتك تذكر {_name_ar(h.name)} ({a.confidence:.0%})، لكن الأدلة تشير "
+                    f"إلى {_name_ar(top.name)} ({top.confidence:.0%}).",
+                    top.record_ids[:6], "fail"))
+
+    open_items = list(analysis.contradictions) + list(analysis.missing)
+    claims_done = any(w in note.lower() for w in DONE_WORDS)
+    if open_items:
+        status = "fail" if claims_done else "info"
+        prefix_en = ("Your note says everything was done, but " if claims_done else "")
+        prefix_ar = ("ملاحظتك تقول إن كل شيء تم، لكن " if claims_done else "")
+        items.append(AdvisorItem(
+            f"{prefix_en}the evidence still shows {len(open_items)} open item(s). "
+            "They are listed as open in the handover so the next shift can close them: "
+            + ", ".join(f.finding_id for f in open_items) + ".",
+            f"{prefix_ar}الأدلة ما زالت تُظهر {len(open_items)} بند مفتوح، وسُجّلت مفتوحة في "
+            "التسليم ليغلقها الموظف التالي: " + "، ".join(f.finding_id for f in open_items) + ".",
+            [f.key for f in analysis.contradictions], status))
+        items.append(AdvisorItem(
+            "If these were already done, record the results as new evidence first, "
+            "then regenerate the handover.",
+            "إذا كانت هذه البنود قد نُفّذت فعلًا، سجّل نتائجها كأدلة جديدة أولًا، ثم أعد إنشاء التسليم.",
+            [], "info"))
+    else:
+        items.append(AdvisorItem("No open contradictions or evidence gaps.",
+                                 "لا توجد تناقضات أو فجوات أدلة مفتوحة.", [], "pass"))
+
+    cost = None
+    if top is not None and top.hypothesis_id in costs.get("profiles", {}):
+        cost = estimate(top.hypothesis_id, costs)
+    doc = build_handover(analysis, meta, shift="Prepared by the Advisor",
+                         notes=note, cost=cost)
+    items.append(AdvisorItem(
+        "Handover drafted below. Save it to History so the next shift sees it on the "
+        "Handover page, or download it and send it through your usual channel.",
+        "جُهّز التسليم بالأسفل. احفظه في السجل ليراه الموظف التالي في صفحة تسليم الوردية، "
+        "أو نزّله وأرسله بالطريقة المعتادة.", [], "info"))
+    return AdvisorAnswer(
+        "handover", "Shift handover drafted", "تم تجهيز تسليم الوردية", items,
+        "The advisor cannot send messages to people; it prepares the handover for you to save "
+        "or share.",
+        "المساعد لا يرسل رسائل للأشخاص؛ يجهّز التسليم لتحفظه أو تشاركه أنت.",
+        attachment=doc)
+
+
 # ------------------------------------------------------------------- routing
 INTENTS = {
+    "handover": ("handover", "hand over", "next shift", "shift note", "وردية", "الوردية",
+                 "تسليم", "سلم", "سلّم", "المناوب", "اللي بعدي", "الموظف"),
     "checks": ("first", "check", "next", "priority", "inspect", "test",
                "أفحص", "افحص", "أول", "اول", "أولوية", "فحص", "الأهم"),
     "restart": ("restart", "safe", "start", "ready", "run again",
@@ -298,14 +387,16 @@ def detect_intent(question: str) -> str | None:
         return None
     scores = {k: sum(1 for w in words if w in q) for k, words in INTENTS.items()}
     # On a tie prefer the broader answer: a plan already includes the checks.
-    order = ("plan", "restart", "explain", "checks")
+    order = ("handover", "plan", "restart", "explain", "checks")
     best = max(order, key=lambda k: (scores[k], -order.index(k)))
     return best if scores[best] > 0 else None
 
 
 def answer(question: str, observations, config: EngineConfig, analysis: AnalysisResult,
-           costs: dict[str, Any]) -> AdvisorAnswer:
+           costs: dict[str, Any], meta: dict[str, Any] | None = None) -> AdvisorAnswer:
     intent = detect_intent(question)
+    if intent == "handover":
+        return handover_note(question, config, analysis, meta or {}, costs)
     if intent == "checks":
         return _checks_answer(observations, config, analysis)
     if intent == "restart":
@@ -316,6 +407,10 @@ def answer(question: str, observations, config: EngineConfig, analysis: Analysis
         return action_plan(observations, config, analysis, costs)
     return AdvisorAnswer(
         "help", "I can answer these questions", "أستطيع الإجابة عن هذه الأسئلة",
-        [AdvisorItem(en, ar_, status="info") for en, ar_, _ in SUGGESTED],
+        [AdvisorItem(en, ar_, status="info") for en, ar_, _ in SUGGESTED]
+        + [AdvisorItem("Prepare a shift handover: write your note, e.g. "
+                       "\"handover: sensor recalibrated, waiting for alignment check\"",
+                       "جهّز تسليم وردية: اكتب ملاحظتك، مثل «تسليم: تمت معايرة الحساس، "
+                       "بانتظار فحص المحاذاة»", status="info")],
         "The advisor is rule-based: it only answers from this investigation's evidence.",
         "المساعد مبني على القواعد: يجيب فقط من أدلة هذا التحقيق.")

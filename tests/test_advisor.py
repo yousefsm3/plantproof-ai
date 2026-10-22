@@ -57,6 +57,23 @@ class AdvisorTests(unittest.TestCase):
         plan = advisor.action_plan(obs, cfg, res, costs)
         self.assertTrue(any("£24,970" in i.en for i in plan.items))
 
+    def test_handover_request_checks_note_against_evidence(self):
+        from plantproof.domain import load_scenario_index
+        from plantproof.handover import Handover
+        q = "ارسل وردية للموظف اللي بعدي ان هناك عطل في الحساس وتم أخذ جميع الحلول"
+        self.assertEqual(advisor.detect_intent(q), "handover")
+        meta = {m["id"]: m for m in load_scenario_index()}
+        obs, cfg, res, costs = setup("A")
+        a = advisor.answer(q, obs, cfg, res, costs, meta["A"])
+        self.assertIsInstance(a.attachment, Handover)
+        self.assertIn(q, a.attachment.notes)
+        statuses = [i.status for i in a.items]
+        self.assertGreaterEqual(statuses.count("fail"), 2)   # wrong cause + open items
+        obs, cfg, res, costs = setup("B")
+        b = advisor.answer(q, obs, cfg, res, costs, meta["B"])
+        self.assertIn("pass", [i.status for i in b.items])    # sensor fault agrees
+        self.assertIn("fail", [i.status for i in b.items])    # but items still open
+
     def test_every_item_has_arabic(self):
         obs, cfg, res, costs = setup("A")
         for q in ("check first", "restart", "why", "plan", "?"):

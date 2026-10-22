@@ -537,7 +537,7 @@ def page_advisor(ctx: Ctx) -> None:
     if typed:
         asked = typed.strip()[:300]
     if asked:
-        ans = advisor.answer(asked, ctx.obs, ctx.cfg, ctx.result, ctx.costs)
+        ans = advisor.answer(asked, ctx.obs, ctx.cfg, ctx.result, ctx.costs, ctx.meta)
         chat = chat + [(asked, ans)]
         st.session_state["advisor_chat"] = (ctx.sid, chat)
 
@@ -545,11 +545,24 @@ def page_advisor(ctx: Ctx) -> None:
         st.info(with_ar("Ask a question about this investigation, then use the suggested "
                         "questions or type your own."))
         return
-    for q, ans in chat:
+    for n, (q, ans) in enumerate(chat):
         with st.chat_message("user", avatar=":material/engineering:"):
             st.markdown(q)
         with st.chat_message("assistant", avatar=":material/psychology:"):
             _render_answer(ans)
+            doc = ans.attachment
+            if isinstance(doc, handover.Handover):
+                md = doc.to_markdown()
+                with st.expander(bi("Shift handover"), expanded=True):
+                    st.markdown(_bilingual_report(md))
+                h1, h2 = st.columns(2)
+                if h1.button(bi("Save to History"), key=f"adv_ho_save_{n}"):
+                    ctx.store.save("handover", ctx.sid, "Handover · Advisor",
+                                   doc.to_dict() | {"markdown": md})
+                    st.success(with_ar("Handover saved."))
+                h2.download_button(f":material/download: {bi('Markdown report')}", md,
+                                   file_name=f"handover_{ctx.sid}_advisor_{n}.md",
+                                   mime="text/markdown", key=f"adv_ho_md_{n}")
     if st.button(bi("Clear conversation"), key="adv_clear"):
         st.session_state.pop("advisor_chat", None)
         st.rerun()

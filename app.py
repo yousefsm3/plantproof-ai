@@ -526,6 +526,8 @@ def page_advisor(ctx: Ctx) -> None:
                 "Rule-based assistant: every answer comes from this investigation's evidence "
                 "and What If simulations. No external AI.")
     chat = session_get("advisor_chat", ctx.sid) or []
+    # Drop answers created by an older version of the advisor (e.g. after a redeploy).
+    chat = [(q, a) for q, a in chat if hasattr(a, "attachment") and hasattr(a, "items")]
 
     st.markdown(f"**{bi('Suggested questions')}**")
     cols = st.columns(len(advisor.SUGGESTED))
@@ -552,7 +554,7 @@ def page_advisor(ctx: Ctx) -> None:
             st.markdown(q)
         with st.chat_message("assistant", avatar=":material/psychology:"):
             _render_answer(ans)
-            doc = ans.attachment
+            doc = getattr(ans, "attachment", None)  # answers saved before an update lack it
             if isinstance(doc, handover.Handover):
                 md = doc.to_markdown()
                 with st.expander(bi("Shift handover"), expanded=True):

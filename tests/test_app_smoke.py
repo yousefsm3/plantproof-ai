@@ -103,6 +103,14 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(ans.intent, "summary")
         self.assertEqual(ans.title_en, "Last shift summary")
 
+    def test_advisor_survives_answers_from_older_version(self):
+        class OldAnswer:  # mimics an answer object saved before 'attachment' existed
+            intent, title_en, title_ar, items, note_en, note_ar = "help", "x", "x", [], "", ""
+        session = SessionState()
+        session["advisor_chat"] = ("A", [("old question", OldAnswer())])
+        fake = self.run_app({"page": "Advisor", "scenario": "A"}, session=session)
+        self.assertEqual(self.errors(fake), [])
+
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})
         warnings = " ".join(str(c[1]) for c in fake.calls if c[0] == "warning")

@@ -37,8 +37,8 @@ PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing
 SOURCE_AR = {"sensor": "حساس", "operator_log": "سجل مشغّل", "inspection": "فحص",
              "lab": "مختبر", "calibration": "معايرة", "maintenance": "صيانة", "event": "حدث"}
 CASE_AR = {"low": "منخفض", "base": "أساسي", "high": "مرتفع"}
-LABEL_COLORS = {"High": "#13315C", "Medium": "#E8A33D", "Low": "#B8C4D3"}
-NAVY, STEEL, AMBER, ALERT = "#13315C", "#8DA9C4", "#E8A33D", "#C2410C"
+LABEL_COLORS = {"High": "#145A55", "Medium": "#C8844A", "Low": "#B9CCC9"}
+PETROL, STEEL, COPPER, ALERT = "#145A55", "#7FA9A3", "#C8844A", "#B42318"
 ASSETS = Path(__file__).resolve().parent / "assets"
 DISCLAIMER = ("Concept prototype for the energy sector. Not affiliated with or endorsed by "
               "any company.")
@@ -172,7 +172,7 @@ def inject_theme() -> None:
     st.markdown(f"""
 <style>
 [data-testid="stAppViewContainer"] {{
-  background-color: #F5F7FA;
+  background-color: #F4F7F6;
   background-image: url("{bg}");
   background-repeat: no-repeat;
   background-position: right -40px bottom -20px;
@@ -181,26 +181,26 @@ def inject_theme() -> None:
 }}
 [data-testid="stHeader"] {{ background: transparent; }}
 [data-testid="stMetric"] {{
-  background: rgba(255,255,255,0.92); border: 1px solid #E1E7EF;
-  border-left: 4px solid {NAVY}; border-radius: 10px; padding: 10px 14px;
+  background: rgba(255,255,255,0.92); border: 1px solid #DCE5E3;
+  border-left: 4px solid {PETROL}; border-radius: 10px; padding: 10px 14px;
 }}
 .pp-hero {{
   display: flex; align-items: center; gap: 16px; padding: 18px 22px; margin: -8px 0 18px 0;
   border-radius: 14px; color: #FFFFFF;
-  background-color: #0B2545;
-  background-image: url("{svg_data_uri('equipment.svg', ('#0B2545', '#FFFFFF'), ('stroke-opacity="0.2"', 'stroke-opacity="0.35"'))}"),
-                    linear-gradient(120deg, #0B2545 0%, #13315C 55%, #1F4A7A 100%);
+  background-color: #0B2E2D;
+  background-image: url("{svg_data_uri('equipment.svg', ('#0B2E2D', '#FFFFFF'), ('stroke-opacity="0.2"', 'stroke-opacity="0.35"'))}"),
+                    linear-gradient(120deg, #0B2E2D 0%, #145A55 55%, #1E6B64 100%);
   background-repeat: no-repeat; background-position: right center; background-size: auto 140%, cover;
-  box-shadow: 0 6px 18px rgba(11,37,69,0.18);
+  box-shadow: 0 6px 18px rgba(11,46,45,0.18);
 }}
 .pp-hero img {{ width: 52px; height: 52px; flex: none; }}
 .pp-hero .pp-title {{ font-size: 1.45rem; font-weight: 700; letter-spacing: .3px; line-height: 1.2; }}
 .pp-hero .pp-sub {{ font-size: .9rem; opacity: .85; margin-top: 2px; }}
-.pp-hero .pp-accent {{ color: {AMBER}; }}
+.pp-hero .pp-accent {{ color: {COPPER}; }}
 .pp-ar {{ font-size: .78em; opacity: .6; font-weight: 400; margin-inline-start: .45em; }}
 .pp-side {{ display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }}
 .pp-side img {{ width: 38px; height: 38px; }}
-.pp-side b {{ font-size: 1.15rem; color: #0B2545; }}
+.pp-side b {{ font-size: 1.15rem; color: #0B2E2D; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -244,7 +244,7 @@ def trend_chart(obs, param: str, ctx: Ctx, highlight: set[str]) -> go.Figure:
     label = bi_plain(PARAM_LABELS.get(param, param))
     fig = go.Figure(go.Scatter(
         x=[o.timestamp for o in series], y=[o.value for o in series], mode="lines+markers",
-        name=label, line=dict(color=NAVY, width=2),
+        name=label, line=dict(color=PETROL, width=2),
         marker=dict(size=4), customdata=[o.record_id for o in series],
         hovertemplate="%{customdata}<br>%{x}<br>%{y}<extra></extra>"))
     hot = [o for o in series if o.record_id in highlight]
@@ -268,9 +268,9 @@ def comparison_chart(rows) -> go.Figure:
     names = [bi_plain(r["hypothesis"]) for r in rows]
     fig = go.Figure([
         go.Bar(name=bi_plain("Baseline"), x=names, y=[r["baseline_confidence"] for r in rows],
-               marker_color="#B8C4D3"),
+               marker_color="#B9CCC9"),
         go.Bar(name=bi_plain("What If"), x=names, y=[r["scenario_confidence"] for r in rows],
-               marker_color=NAVY),
+               marker_color=PETROL),
     ])
     fig.update_layout(barmode="group", height=340, margin=dict(l=10, r=10, t=10, b=10),
                       yaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")),
@@ -280,7 +280,7 @@ def comparison_chart(rows) -> go.Figure:
 
 def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
     cases = [f"{c.title()} · {CASE_AR[c]}" for c in cost_model.CASES]
-    colors = [NAVY, STEEL, AMBER]
+    colors = [PETROL, STEEL, COPPER]
     fig = go.Figure([
         go.Bar(name=bi_plain(line.component), x=cases, y=[line.low, line.base, line.high],
                marker_color=colors[i % len(colors)])

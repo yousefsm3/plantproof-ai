@@ -7,6 +7,9 @@ configurable **root-cause hypotheses**, and links every finding to the **source 
 behind it. All analysis is transparent and rule-based: no LLM, no external AI service, no paid
 API and no API keys.
 
+Every label in the dashboard shows a light-grey Arabic gloss next to the English text
+(`plantproof/translations.py`). Engine-generated detail sentences stay in English.
+
 > **Synthetic data only.** Every record in this repository is fictional. This repository is
 > public: it contains no credentials, API keys, passwords, personal data or secrets, and must
 > never contain any.

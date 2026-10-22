@@ -1,3 +1,4 @@
+import ast
 import unittest
 from pathlib import Path
 
@@ -40,8 +41,15 @@ class BlindTestTests(unittest.TestCase):
             bt.load_reference("Z")
 
     def test_reference_file_only_read_by_blind_test(self):
-        users = [p.name for p in PKG.glob("*.py")
-                 if "reference_answers" in p.read_text(encoding="utf-8")]
+        # translations.py only contains UI sentences that mention the file name.
+        users = [p.name for p in PKG.glob("*.py") if p.name != "translations.py"
+                 and "reference_answers" in p.read_text(encoding="utf-8")]
+        tree = ast.parse((PKG / "translations.py").read_text(encoding="utf-8"))
+        imports = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
+                   and getattr(n, "module", None) != "__future__"]
+        opens = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Name) and n.func.id == "open"]
+        self.assertEqual((imports, opens), ([], []))
         self.assertEqual(users, ["blind_test.py"])
 
 

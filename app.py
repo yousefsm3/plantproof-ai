@@ -2,6 +2,9 @@
 
 This file only DISPLAYS results. All analysis lives in the plantproof/ package
 (plain Python, unit-tested). Run locally with:  streamlit run app.py
+
+UI labels show English followed by a light-grey Arabic gloss
+(see plantproof/translations.py).
 """
 
 from __future__ import annotations
@@ -18,6 +21,7 @@ from plantproof.domain import (SOURCE_TYPES, AnalysisResult, ConfigError, Engine
                                load_scenario_index)
 from plantproof.evidence_engine import analyse
 from plantproof.storage import Store
+from plantproof.translations import ar, bi, bi_plain
 
 st.set_page_config(page_title="PlantProof AI", page_icon="🏭", layout="wide",
                    initial_sidebar_state="expanded")
@@ -28,16 +32,25 @@ PAGE_ICONS = {"Overview": "📊", "Evidence": "🔎", "What If": "🧪", "Blind 
 PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing temp (°C)",
                 "discharge_pressure_bar": "Discharge pressure (bar)",
                 "motor_current_a": "Motor current (A)"}
+SOURCE_AR = {"sensor": "حساس", "operator_log": "سجل مشغّل", "inspection": "فحص",
+             "lab": "مختبر", "calibration": "معايرة", "maintenance": "صيانة", "event": "حدث"}
+CASE_AR = {"low": "منخفض", "base": "أساسي", "high": "مرتفع"}
 LABEL_COLORS = {"High": "#0F766E", "Medium": "#D97706", "Low": "#94A3B8"}
 PERSISTENCE_SHORT = ("Saved history may be lost when the app restarts or redeploys. "
                      "Export it from the History page to keep a copy.")
 PERSISTENCE_FULL = (
-    "**Storage notice.** History is stored in a local SQLite file. On Streamlit "
-    "Community Cloud, local files are **not guaranteed to persist**: they can be wiped "
-    "when the app restarts, reboots, redeploys or wakes from sleep. Demo data is rebuilt "
-    "automatically, but saved investigations, What If runs, Blind Test results and "
-    "handovers are lost unless you **export** them below and **import** them again later."
+    "**Storage notice** :gray[تنبيه التخزين]  \n"
+    "History is stored in a local SQLite file. On Streamlit Community Cloud, local files are "
+    "**not guaranteed to persist**: they can be wiped when the app restarts, reboots, "
+    "redeploys or wakes from sleep. Demo data is rebuilt automatically, but saved "
+    "investigations, What If runs, Blind Test results and handovers are lost unless you "
+    "**export** them below and **import** them again later.  \n"
+    ":gray[قد يُحذف السجل عند إعادة تشغيل التطبيق أو تحديثه أو استيقاظه من السكون. "
+    "نزّله من هنا واستورده لاحقًا.]"
 )
+HANDOVER_HEADINGS = ("Status", "Leading hypothesis", "Contradictions to resolve",
+                     "Missing evidence", "Actions for incoming shift",
+                     "Cost impact (illustrative)", "What If notes", "Analyst notes")
 
 
 # --------------------------------------------------------------------------- setup
@@ -82,6 +95,21 @@ def money(x: float, ctx: Ctx) -> str:
     return cost_model.format_money(x, ctx.costs["currency_symbol"])
 
 
+def gray(text: str) -> str:
+    """Light-grey Arabic line for st.markdown / st.caption."""
+    return f":gray[{text}]" if text else ""
+
+
+def with_ar(text: str) -> str:
+    """English sentence followed by its Arabic gloss on a new line (markdown)."""
+    gloss = ar(text)
+    return f"{text}  \n:gray[{gloss}]" if gloss else text
+
+
+def source_plain(s: str) -> str:
+    return f"{s.replace('_', ' ')} · {SOURCE_AR.get(s, '')}"
+
+
 def ids_text(ids, limit: int = 10) -> str:
     ids = list(ids)
     if not ids:
@@ -91,15 +119,17 @@ def ids_text(ids, limit: int = 10) -> str:
 
 
 def records_table(obs) -> list[dict]:
-    return [{"Record ID": o.record_id, "Time": o.timestamp.replace("T", " "),
-             "Type": o.source_type.replace("_", " "), "Parameter": o.parameter,
-             "Value": o.value, "Unit": o.unit, "Status": o.status or "",
-             "Source": o.source, "Text": o.text} for o in obs]
+    return [{"Record ID · رقم السجل": o.record_id,
+             "Time · الوقت": o.timestamp.replace("T", " "),
+             "Type · النوع": source_plain(o.source_type),
+             "Parameter · المتغير": o.parameter, "Value · القيمة": o.value,
+             "Unit · الوحدة": o.unit, "Status · الحالة": o.status or "",
+             "Source · المصدر": o.source, "Text · النص": o.text} for o in obs]
 
 
 def show_finding(f: Finding) -> None:
-    st.markdown(f"**{f.finding_id} · {f.title}**  \n{f.detail}")
-    st.caption(f"Source records: {ids_text(f.record_ids)}")
+    st.markdown(f"**{f.finding_id} · {f.title}** {gray(ar(f.title))}  \n{f.detail}")
+    st.caption(f"{bi('Source records')}: {ids_text(f.record_ids)}")
 
 
 def session_get(key: str, sid: str):
@@ -110,67 +140,74 @@ def session_get(key: str, sid: str):
     return None
 
 
+def page_header(icon: str, title: str, caption: str = "") -> None:
+    st.title(f"{icon} {bi(title)}")
+    if caption:
+        st.caption(with_ar(caption))
+
+
 # -------------------------------------------------------------------------- charts
 def confidence_chart(assessments) -> go.Figure:
     items = list(reversed(assessments))
     fig = go.Figure(go.Bar(
-        x=[a.confidence for a in items], y=[a.name for a in items], orientation="h",
+        x=[a.confidence for a in items], y=[bi_plain(a.name) for a in items], orientation="h",
         marker_color=[LABEL_COLORS[a.confidence_label] for a in items],
         text=[f"{a.confidence:.0%} · {a.confidence_label}" for a in items],
         textposition="auto", hovertemplate="%{y}: %{x:.0%}<extra></extra>"))
-    fig.update_layout(height=260, margin=dict(l=10, r=10, t=10, b=10),
-                      xaxis=dict(range=[0, 1], tickformat=".0%", title="Confidence"))
+    fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10),
+                      xaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")))
     return fig
 
 
 def trend_chart(obs, param: str, ctx: Ctx, highlight: set[str]) -> go.Figure:
     series = [o for o in obs if o.source_type == "sensor" and o.parameter == param]
+    label = bi_plain(PARAM_LABELS.get(param, param))
     fig = go.Figure(go.Scatter(
         x=[o.timestamp for o in series], y=[o.value for o in series], mode="lines+markers",
-        name=PARAM_LABELS.get(param, param), line=dict(color="#0F766E", width=2),
+        name=label, line=dict(color="#0F766E", width=2),
         marker=dict(size=4), customdata=[o.record_id for o in series],
         hovertemplate="%{customdata}<br>%{x}<br>%{y}<extra></extra>"))
     hot = [o for o in series if o.record_id in highlight]
     if hot:
         fig.add_trace(go.Scatter(
             x=[o.timestamp for o in hot], y=[o.value for o in hot], mode="markers",
-            name="Linked to a contradiction", marker=dict(color="#DC2626", size=9),
+            name=bi_plain("Linked to a contradiction"), marker=dict(color="#DC2626", size=9),
             customdata=[o.record_id for o in hot],
             hovertemplate="%{customdata}<br>%{y}<extra></extra>"))
     limit = ctx.cfg.limits.get(param)
     if limit:
         fig.add_hline(y=limit.alarm, line_dash="dash", line_color="#DC2626",
-                      annotation_text=f"Alarm {limit.alarm:g}", annotation_position="top left")
+                      annotation_text=f"Alarm · حد الإنذار {limit.alarm:g}",
+                      annotation_position="top left")
     fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10), showlegend=bool(hot),
-                      legend=dict(orientation="h", y=-0.2),
-                      yaxis_title=PARAM_LABELS.get(param, param))
+                      legend=dict(orientation="h", y=-0.2), yaxis_title=label)
     return fig
 
 
 def comparison_chart(rows) -> go.Figure:
-    names = [r["hypothesis"] for r in rows]
+    names = [bi_plain(r["hypothesis"]) for r in rows]
     fig = go.Figure([
-        go.Bar(name="Baseline", x=names, y=[r["baseline_confidence"] for r in rows],
+        go.Bar(name=bi_plain("Baseline"), x=names, y=[r["baseline_confidence"] for r in rows],
                marker_color="#94A3B8"),
-        go.Bar(name="What If", x=names, y=[r["scenario_confidence"] for r in rows],
+        go.Bar(name=bi_plain("What If"), x=names, y=[r["scenario_confidence"] for r in rows],
                marker_color="#0F766E"),
     ])
-    fig.update_layout(barmode="group", height=320, margin=dict(l=10, r=10, t=10, b=10),
-                      yaxis=dict(range=[0, 1], tickformat=".0%", title="Confidence"),
+    fig.update_layout(barmode="group", height=340, margin=dict(l=10, r=10, t=10, b=10),
+                      yaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")),
                       legend=dict(orientation="h", y=1.1))
     return fig
 
 
 def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
-    cases = ["Low", "Base", "High"]
+    cases = [f"{c.title()} · {CASE_AR[c]}" for c in cost_model.CASES]
     colors = ["#0F766E", "#5EAAA8", "#D97706"]
     fig = go.Figure([
-        go.Bar(name=line.component, x=cases, y=[line.low, line.base, line.high],
+        go.Bar(name=bi_plain(line.component), x=cases, y=[line.low, line.base, line.high],
                marker_color=colors[i % len(colors)])
         for i, line in enumerate(est.lines)
     ])
     fig.update_layout(barmode="stack", height=320, margin=dict(l=10, r=10, t=10, b=10),
-                      yaxis_title=f"Cost ({est.currency_symbol})",
+                      yaxis_title=f"Cost · التكلفة ({est.currency_symbol})",
                       legend=dict(orientation="h", y=1.1))
     return fig
 
@@ -178,145 +215,154 @@ def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
 # --------------------------------------------------------------------------- pages
 def page_overview(ctx: Ctx) -> None:
     r, top = ctx.result, ctx.result.top
-    st.title(f"🏭 {ctx.meta['asset_name']}")
-    st.caption(f"{ctx.meta['title']} · analysis window {r.window_start.replace('T', ' ')} "
-               f"→ {r.window_end.replace('T', ' ')}")
-    st.info(ctx.meta["summary"])
+    st.title(f"🏭 {bi(ctx.meta['asset_name'])}")
+    st.caption(f"{bi(ctx.meta['title'])} · {bi('analysis window')} "
+               f"{r.window_start.replace('T', ' ')} → {r.window_end.replace('T', ' ')}")
+    st.info(ctx.meta["summary"] + "  \n:gray[توقفت المضخة P-301 بسبب إنذار اهتزاز عالٍ وتوقف "
+            "الخط 3. حدّد السبب قبل إعادة التشغيل.]")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Records analysed", r.record_count)
-    c2.metric("Contradictions", len(r.contradictions),
-              help="Records that conflict with each other. Resolve before restart.")
-    c3.metric("Missing evidence", len(r.missing),
-              help="Evidence a hypothesis needs that is absent or out of date.")
+    c1.metric(bi("Records analysed"), r.record_count)
+    c2.metric(bi("Contradictions"), len(r.contradictions),
+              help=with_ar("Records that conflict with each other. Resolve before restart."))
+    c3.metric(bi("Missing evidence"), len(r.missing),
+              help=with_ar("Evidence a hypothesis needs that is absent or out of date."))
     if top:
-        c4.metric("Leading hypothesis", top.name, f"{pct(top.confidence)} · {top.confidence_label}",
+        c4.metric(bi("Leading hypothesis"), top.name,
+                  f"{pct(top.confidence)} · {top.confidence_label} · {ar(top.name)}",
                   delta_color="off")
 
     if top:
-        est = cost_model.estimate(top.hypothesis_id, ctx.costs)
-        t = est.totals
-        st.markdown(f"**Estimated cost impact if {top.name.lower()} is confirmed:** "
+        t = cost_model.estimate(top.hypothesis_id, ctx.costs).totals
+        st.markdown(f"**{bi('Estimated cost impact if confirmed')}** ({top.name}): "
                     f"{money(t['low'], ctx)} – {money(t['high'], ctx)} "
-                    f"(base {money(t['base'], ctx)}). Illustrative figures; see the Cost page.")
+                    f"(base {money(t['base'], ctx)}). Illustrative figures; see the Cost page.  \n"
+                    + gray("أرقام توضيحية، التفاصيل في صفحة التكلفة."))
 
     left, right = st.columns([3, 2])
     with left:
-        st.subheader("Sensor trends")
+        st.subheader(bi("Sensor trends"))
         highlight = {rid for c in r.contradictions for rid in c.record_ids}
         params = [p for p in PARAM_LABELS if any(o.parameter == p for o in ctx.obs)]
-        tabs = st.tabs([PARAM_LABELS[p] for p in params])
+        tabs = st.tabs([bi(PARAM_LABELS[p]) for p in params])
         for tab, p in zip(tabs, params):
             with tab:
                 st.plotly_chart(trend_chart(ctx.obs, p, ctx, highlight), key=f"trend_{p}")
     with right:
-        st.subheader("Hypothesis confidence")
+        st.subheader(bi("Hypothesis confidence"))
         st.plotly_chart(confidence_chart(r.assessments), key="overview_conf")
-        st.caption("Rule-based and explainable. See the Evidence page for the working.")
+        st.caption(with_ar("Rule-based and explainable. See the Evidence page for the working."))
 
     a, b = st.columns(2)
     with a:
-        st.subheader("⚠️ Contradictions")
+        st.subheader(f"⚠️ {bi('Contradictions')}")
         if not r.contradictions:
-            st.success("No contradictions detected.")
+            st.success(with_ar("No contradictions detected."))
         for f in r.contradictions:
             with st.container(border=True):
                 show_finding(f)
     with b:
-        st.subheader("🧩 Missing evidence")
+        st.subheader(f"🧩 {bi('Missing evidence')}")
         if not r.missing:
-            st.success("All required evidence is present.")
+            st.success(with_ar("All required evidence is present."))
         for f in r.missing:
             with st.container(border=True):
                 hyps = ", ".join(ctx.cfg.hypothesis(h).name for h in f.hypothesis_ids)
-                st.markdown(f"**{f.finding_id} · {f.title}**  \n{f.detail}")
-                st.caption(f"Needed to test: {hyps}")
+                hyps_ar = "، ".join(ar(ctx.cfg.hypothesis(h).name) for h in f.hypothesis_ids)
+                st.markdown(f"**{f.finding_id} · {f.title}** {gray(ar(f.title))}  \n{f.detail}")
+                st.caption(f"{bi('Needed to test')}: {hyps} {gray(hyps_ar)}")
 
 
 def page_evidence(ctx: Ctx) -> None:
     r = ctx.result
-    st.title("🔎 Evidence engine")
-    st.caption("Every conclusion below links to the source record IDs it is based on.")
+    page_header("🔎", "Evidence engine",
+                "Every conclusion below links to the source record IDs it is based on.")
 
-    st.subheader("Hypothesis ranking")
+    st.subheader(bi("Hypothesis ranking"))
     st.dataframe([{
-        "Rank": a.rank, "Hypothesis": a.name, "Confidence": pct(a.confidence),
-        "Level": a.confidence_label, "Support ratio": pct(a.support_ratio),
-        "Evidence coverage": pct(a.coverage), "Contested factor": a.contested_factor,
+        "Rank · الترتيب": a.rank, "Hypothesis · الفرضية": bi_plain(a.name),
+        "Confidence · الثقة": pct(a.confidence),
+        "Level · المستوى": bi_plain(a.confidence_label),
+        "Support ratio · نسبة الدعم": pct(a.support_ratio),
+        "Evidence coverage · تغطية الأدلة": pct(a.coverage),
+        "Contested factor · معامل التعارض": a.contested_factor,
     } for a in r.assessments], hide_index=True)
 
-    with st.expander("How confidence is calculated"):
+    with st.expander(bi("How confidence is calculated")):
         cfg = ctx.cfg
         st.markdown(
             f"""
-- **Support ratio** = max(0, matched supporting weight − matched refuting weight) ÷ total supporting weight
-- **Coverage** = required evidence present ÷ required evidence total
-- **Coverage factor** = {cfg.coverage_floor:g} + {1 - cfg.coverage_floor:g} × coverage
-- **Contested factor** = max({cfg.min_contested_factor:g}, {cfg.contested_penalty:g} ^ number of contradictions touching supporting records)
-- **Confidence** = support ratio × coverage factor × contested factor
-- Levels: High ≥ {pct(cfg.high_threshold)}, Medium ≥ {pct(cfg.medium_threshold)}, otherwise Low.
+- **Support ratio** :gray[نسبة الدعم] = max(0, matched supporting weight − matched refuting weight) ÷ total supporting weight
+- **Coverage** :gray[التغطية] = required evidence present ÷ required evidence total
+- **Coverage factor** :gray[معامل التغطية] = {cfg.coverage_floor:g} + {1 - cfg.coverage_floor:g} × coverage
+- **Contested factor** :gray[معامل التعارض] = max({cfg.min_contested_factor:g}, {cfg.contested_penalty:g} ^ number of contradictions touching supporting records)
+- **Confidence** :gray[الثقة] = support ratio × coverage factor × contested factor
+- Levels :gray[المستويات]: High :gray[عالية] ≥ {pct(cfg.high_threshold)}, Medium :gray[متوسطة] ≥ {pct(cfg.medium_threshold)}, otherwise Low :gray[منخفضة].
 
 Rules, weights and thresholds live in `config/hypotheses.json`.
+:gray[القواعد والأوزان والحدود موجودة في ملف الإعدادات config/hypotheses.json.]
 """)
 
     for a in r.assessments:
-        with st.expander(f"#{a.rank} {a.name} — {pct(a.confidence)} ({a.confidence_label})",
+        with st.expander(f"#{a.rank} {bi(a.name)} — {pct(a.confidence)} ({bi(a.confidence_label)})",
                          expanded=a.rank == 1):
             st.caption(ctx.cfg.hypothesis(a.hypothesis_id).description)
             m1, m2, m3 = st.columns(3)
-            m1.metric("Support ratio", pct(a.support_ratio),
+            m1.metric(bi("Support ratio"), pct(a.support_ratio),
                       f"{a.support_score:g} of {a.support_possible:g} pts, −{a.refute_score:g} refuting",
                       delta_color="off")
-            m2.metric("Evidence coverage", pct(a.coverage))
-            m3.metric("Contested factor", f"{a.contested_factor:.2f}")
-            st.markdown("**Supporting evidence**")
-            for f in a.supporting or []:
+            m2.metric(bi("Evidence coverage"), pct(a.coverage))
+            m3.metric(bi("Contested factor"), f"{a.contested_factor:.2f}")
+            st.markdown(f"**{bi('Supporting evidence')}**")
+            for f in a.supporting:
                 show_finding(f)
             if not a.supporting:
-                st.caption("No supporting rule matched.")
-            st.markdown("**Refuting evidence**")
+                st.caption(with_ar("No supporting rule matched."))
+            st.markdown(f"**{bi('Refuting evidence')}**")
             for f in a.refuting:
                 show_finding(f)
             if not a.refuting:
-                st.caption("No refuting rule matched.")
+                st.caption(with_ar("No refuting rule matched."))
             if a.missing:
-                st.markdown("**Missing evidence**")
+                st.markdown(f"**{bi('Missing evidence')}**")
                 for f in a.missing:
-                    st.markdown(f"- {f.title}: {f.detail}")
-            st.markdown("**Recommended actions if confirmed**")
-            st.markdown("\n".join(f"- {x}" for x in a.recommended_actions) or "—")
+                    st.markdown(f"- {f.title} {gray(ar(f.title))}: {f.detail}")
+            st.markdown(f"**{bi('Recommended actions if confirmed')}**")
+            st.markdown("\n".join(f"- {x} {gray(ar(x))}" for x in a.recommended_actions) or "—")
 
-    st.subheader("Contradictions")
+    st.subheader(bi("Contradictions"))
     if not r.contradictions:
-        st.success("No contradictions detected.")
+        st.success(with_ar("No contradictions detected."))
     for f in r.contradictions:
         with st.container(border=True):
             show_finding(f)
 
-    st.subheader("Trace a record")
+    st.subheader(bi("Trace a record"))
     referenced = sorted({rid for f in r.all_findings() for rid in f.record_ids})
     by_id = {o.record_id: o for o in ctx.obs}
     if referenced:
-        rid = st.selectbox("Record ID used by a finding", referenced, key=f"trace_record_{ctx.sid}")
+        rid = st.selectbox(bi("Record ID used by a finding"), referenced,
+                           key=f"trace_record_{ctx.sid}")
         rec = by_id.get(rid)
         if rec:
             st.dataframe(records_table([rec]), hide_index=True)
             used_by = r.findings_for_record(rid)
-            st.markdown("**Used by:** " + ", ".join(f"{f.finding_id} ({f.title})" for f in used_by))
+            st.markdown(f"**{bi('Used by')}:** "
+                        + ", ".join(f"{f.finding_id} ({f.title})" for f in used_by))
 
-    st.subheader("All source records")
+    st.subheader(bi("All source records"))
     present = [s for s in SOURCE_TYPES if any(o.source_type == s for o in ctx.obs)]
-    chosen = st.multiselect("Record types", present,
+    chosen = st.multiselect(bi("Record types"), present, format_func=source_plain,
                             default=[s for s in present if s != "sensor"], key="ev_types")
     st.dataframe(records_table([o for o in ctx.obs if o.source_type in chosen]), hide_index=True)
 
-    st.subheader("Save this investigation")
+    st.subheader(bi("Save this investigation"))
     with st.form("save_investigation"):
-        title = st.text_input("Title", value=f"P-301 trip investigation ({ctx.sid})")
-        role = st.text_input("Analyst role", placeholder="e.g. Reliability engineer",
-                             help="Use a role, not a personal name - this demo is public.")
-        notes = st.text_area("Notes", max_chars=2000)
-        if st.form_submit_button("Save investigation", type="primary"):
+        title = st.text_input(bi("Title"), value=f"P-301 trip investigation ({ctx.sid})")
+        role = st.text_input(bi("Analyst role"), placeholder="e.g. Reliability engineer",
+                             help=with_ar("Use a role, not a personal name - this demo is public."))
+        notes = st.text_area(bi("Notes"), max_chars=2000)
+        if st.form_submit_button(bi("Save investigation"), type="primary"):
             top = r.top
             ctx.store.save("investigation", ctx.sid, title, {
                 "analyst_role": role, "notes": notes,
@@ -324,7 +370,7 @@ Rules, weights and thresholds live in `config/hypotheses.json`.
                 "confidence": top.confidence if top else None,
                 "analysis": r.to_dict(),
             })
-            st.success("Investigation saved to History. Remember to export history to keep it.")
+            st.success(with_ar("Investigation saved to History. Remember to export history to keep it."))
 
 
 def _whatif_presets(sid: str) -> dict[str, list[whatif.WhatIfChange]]:
@@ -345,80 +391,95 @@ def _whatif_presets(sid: str) -> dict[str, list[whatif.WhatIfChange]]:
 
 
 def page_whatif(ctx: Ctx) -> None:
-    st.title("🧪 What If simulations")
-    st.caption("Changes are applied to a copy of the data. Original observations are never "
-               "modified - each run proves this with a fingerprint check.")
+    page_header("🧪", "What If simulations",
+                "Changes are applied to a copy of the data. Original observations are never "
+                "modified - each run proves this with a fingerprint check.")
 
     presets = _whatif_presets(ctx.sid)
-    choice = st.selectbox("Start from a preset", ["Custom"] + list(presets), key="wi_preset")
+    choice = st.selectbox(bi("Start from a preset"), ["Custom"] + list(presets),
+                          format_func=bi_plain, key="wi_preset")
     changes: list[whatif.WhatIfChange] = []
 
     if choice != "Custom":
         changes = presets[choice]
-        st.markdown("**Changes:** " + "; ".join(c.describe() for c in changes))
+        st.markdown(f"**{bi('Changes')}:** " + "; ".join(c.describe() for c in changes))
     else:
         present = [s for s in SOURCE_TYPES if any(o.source_type == s for o in ctx.obs)]
-        excl = st.multiselect("Ignore these record types", present, key="wi_excl")
+        excl = st.multiselect(bi("Ignore these record types"), present,
+                              format_func=source_plain, key="wi_excl")
         for s in excl:
             changes.append(whatif.WhatIfChange("exclude_source", {"source_type": s}))
 
         valued = [o for o in ctx.obs if o.value is not None]
-        if st.checkbox("Override one record's value", key="wi_ovr_on"):
+        if st.checkbox(bi("Override one record's value"), key="wi_ovr_on"):
             non_sensor = [o.record_id for o in valued if o.source_type != "sensor"]
             ids = non_sensor + [o.record_id for o in valued if o.source_type == "sensor"]
-            rid = st.selectbox("Record", ids, key=f"wi_ovr_id_{ctx.sid}")
+            rid = st.selectbox(bi("Record"), ids, key=f"wi_ovr_id_{ctx.sid}")
             current = next(o for o in valued if o.record_id == rid)
-            st.caption(f"Current value: {current.value:g} {current.unit} · {current.text}")
-            val = st.number_input("New value", value=float(current.value), key=f"wi_ovr_val_{ctx.sid}_{rid}")
+            st.caption(f"Current value · القيمة الحالية: {current.value:g} {current.unit} · {current.text}")
+            val = st.number_input(bi("New value"), value=float(current.value),
+                                  key=f"wi_ovr_val_{ctx.sid}_{rid}")
             changes.append(whatif.WhatIfChange("override_value", {"record_id": rid, "value": val}))
 
-        if st.checkbox("Scale a sensor parameter", key="wi_scale_on"):
+        if st.checkbox(bi("Scale a sensor parameter"), key="wi_scale_on"):
             params = sorted({o.parameter for o in ctx.obs if o.source_type == "sensor"})
-            p = st.selectbox("Parameter", params, format_func=lambda x: PARAM_LABELS.get(x, x),
+            p = st.selectbox(bi("Parameter"), params,
+                             format_func=lambda x: bi_plain(PARAM_LABELS.get(x, x)),
                              key="wi_scale_p")
-            factor = st.slider("Multiply all readings by", 0.5, 1.5, 1.0, 0.05, key="wi_scale_f")
+            factor = st.slider(bi("Multiply all readings by"), 0.5, 1.5, 1.0, 0.05,
+                               key="wi_scale_f")
             changes.append(whatif.WhatIfChange("scale_parameter", {"parameter": p, "factor": factor}))
 
-        if st.checkbox("Add hypothetical evidence", key="wi_add_on"):
+        if st.checkbox(bi("Add hypothetical evidence"), key="wi_add_on"):
             tpls = whatif.EVIDENCE_TEMPLATES
-            p = st.selectbox("Evidence", list(tpls), format_func=lambda x: tpls[x]["label"],
-                             key="wi_add_p")
+            p = st.selectbox(bi("Evidence"), list(tpls),
+                             format_func=lambda x: bi_plain(tpls[x]["label"]), key="wi_add_p")
             params = {"parameter": p}
             if tpls[p]["default"] is not None:
-                params["value"] = st.number_input("Value", value=float(tpls[p]["default"]),
+                params["value"] = st.number_input(bi("Value"), value=float(tpls[p]["default"]),
                                                   key="wi_add_v")
             changes.append(whatif.WhatIfChange("add_record", params))
 
-    if st.button("Run simulation", type="primary", disabled=not changes, key="wi_run"):
+    if st.button(bi("Run simulation"), type="primary", disabled=not changes, key="wi_run"):
         try:
             res = whatif.run_whatif(ctx.obs, ctx.cfg, changes)
             st.session_state["whatif_result"] = (ctx.sid, res)
         except ValueError as exc:
-            st.error(f"Could not run the simulation: {exc}")
+            st.error(f"Could not run the simulation · تعذّر تشغيل المحاكاة: {exc}")
 
     res = session_get("whatif_result", ctx.sid)
     if res is None:
-        st.info("Choose a preset or build custom changes, then run the simulation.")
+        st.info(with_ar("Choose a preset or build custom changes, then run the simulation."))
         return
 
     st.divider()
-    st.success(res.summary())
-    st.markdown("**Applied:** " + "; ".join(c.describe() for c in res.changes))
+    bt, stp = res.baseline.top, res.scenario.top
+    summary_ar = ""
+    if bt and stp:
+        summary_ar = (f"الفرضية الأقوى لم تتغير: {ar(stp.name)} ({bt.confidence:.0%} ← {stp.confidence:.0%})"
+                      if bt.hypothesis_id == stp.hypothesis_id else
+                      f"الفرضية الأقوى تغيرت من {ar(bt.name)} ({bt.confidence:.0%}) "
+                      f"إلى {ar(stp.name)} ({stp.confidence:.0%})")
+    st.success(f"{res.summary()}  \n{gray(summary_ar)}")
+    st.markdown(f"**{bi('Applied')}:** " + "; ".join(c.describe() for c in res.changes))
     ok = res.originals_unchanged and whatif.fingerprint(ctx.store.observations(ctx.sid)) \
         == res.fingerprint_before
     f1, f2 = st.columns(2)
-    f1.metric("Original data fingerprint (before → after)",
+    f1.metric(bi("Original data fingerprint (before → after)"),
               f"{res.fingerprint_before[:8]} → {res.fingerprint_after[:8]}")
     if ok:
-        f2.success("✅ Original observations unchanged (memory and database checked).")
+        f2.success("✅ " + with_ar("Original observations unchanged (memory and database checked)."))
     else:
-        f2.error("Original observations changed - please report this bug.")
+        f2.error("Original observations changed - please report this bug. "
+                 "البيانات الأصلية تغيرت، يرجى الإبلاغ عن هذا الخطأ.")
 
     rows = res.comparison()
     st.plotly_chart(comparison_chart(rows), key="wi_chart")
-    st.dataframe([{"Hypothesis": x["hypothesis"], "Baseline": pct(x["baseline_confidence"]),
-                   "What If": pct(x["scenario_confidence"]),
-                   "Change": f"{x['delta']:+.0%}", "Rank": f"{x['baseline_rank']} → {x['scenario_rank']}"}
+    st.dataframe([{"Hypothesis · الفرضية": bi_plain(x["hypothesis"]),
+                   "Baseline · الأصل": pct(x["baseline_confidence"]),
+                   "What If · ماذا لو": pct(x["scenario_confidence"]),
+                   "Change · التغيير": f"{x['delta']:+.0%}",
+                   "Rank · الترتيب": f"{x['baseline_rank']} → {x['scenario_rank']}"}
                   for x in rows], hide_index=True)
     sc = res.set_changes()
     cols = st.columns(4)
@@ -426,56 +487,62 @@ def page_whatif(ctx: Ctx) -> None:
                                       ("contradictions_new", "New contradictions"),
                                       ("missing_resolved", "Evidence gaps closed"),
                                       ("missing_new", "New evidence gaps")]):
-        col.metric(label, len(sc[k]))
+        col.metric(bi(label), len(sc[k]))
         if sc[k]:
             col.caption(", ".join(sc[k]))
 
-    if st.button("Save this run to History", key="wi_save"):
+    if st.button(bi("Save this run to History"), key="wi_save"):
         ctx.store.save("whatif", ctx.sid, res.summary(), res.to_dict())
-        st.success("What If run saved.")
+        st.success(with_ar("What If run saved."))
 
 
 def _show_score(score: blind_test.BlindTestScore, ctx: Ctx, key: str) -> None:
     m1, m2 = st.columns(2)
-    m1.metric("Blind Test score", f"{score.total:g} / 100")
-    m2.metric("Grade", score.grade)
+    m1.metric(bi("Blind Test score"), f"{score.total:g} / 100")
+    m2.metric(bi("Grade"), score.grade, ar(score.grade), delta_color="off")
     st.progress(min(1.0, score.total / 100))
-    st.dataframe([{"Component": c.name, "Points": f"{c.points:g} / {c.max_points:g}",
-                   "Detail": c.detail} for c in score.components], hide_index=True)
-    with st.expander("Reveal reference answers"):
+    names_ar = {"Root cause": "السبب الجذري", "Contradictions": "التناقضات",
+                "Missing evidence": "الأدلة المفقودة"}
+    st.dataframe([{"Component · العنصر": f"{c.name} · {names_ar.get(c.name, '')}",
+                   "Points · النقاط": f"{c.points:g} / {c.max_points:g}",
+                   "Detail · التفاصيل": c.detail} for c in score.components], hide_index=True)
+    with st.expander(bi("Reveal reference answers")):
         ref = score.reference
-        st.markdown(f"**Root cause:** {ctx.cfg.hypothesis(ref.root_cause).name}")
-        st.markdown(f"**Expected contradictions:** {', '.join(sorted(ref.expected_contradictions))}")
-        st.markdown(f"**Expected missing evidence:** {', '.join(sorted(ref.expected_missing))}")
-        st.markdown(f"**Rationale:** {ref.rationale}")
+        root = ctx.cfg.hypothesis(ref.root_cause).name
+        st.markdown(f"**{bi('Root cause')}:** {root} {gray(ar(root))}")
+        st.markdown(f"**{bi('Expected contradictions')}:** "
+                    f"{', '.join(sorted(ref.expected_contradictions))}")
+        st.markdown(f"**{bi('Expected missing evidence')}:** "
+                    f"{', '.join(sorted(ref.expected_missing))}")
+        st.markdown(f"**{bi('Rationale')}:** {ref.rationale}")
         for c in score.components[1:]:
             if c.false_positives or c.false_negatives:
                 st.caption(f"{c.name}: extra {c.false_positives or '—'}, "
                            f"missed {c.false_negatives or '—'}")
-    if st.button("Save result to History", key=f"bt_save_{key}"):
+    if st.button(bi("Save result to History"), key=f"bt_save_{key}"):
         ctx.store.save("blind_test", ctx.sid,
                        f"Blind Test ({score.submission.source}): {score.total:g}/100",
                        score.to_dict())
-        st.success("Blind Test result saved.")
+        st.success(with_ar("Blind Test result saved."))
 
 
 def page_blind_test(ctx: Ctx) -> None:
-    st.title("🎯 Blind Test")
-    st.caption("Scores an analysis against reference answers stored separately in "
-               "data/reference_answers.json. The evidence engine never reads that file "
-               "(a unit test enforces this).")
-    st.warning("Transparency note: this repository is public, so anyone can read the "
-               "reference answers. The separation shows the method; it is not a secret.")
+    page_header("🎯", "Blind Test",
+                "Scores an analysis against reference answers stored separately in "
+                "data/reference_answers.json. The evidence engine never reads that file "
+                "(a unit test enforces this).")
+    st.warning(with_ar("Transparency note: this repository is public, so anyone can read the "
+                       "reference answers. The separation shows the method; it is not a secret."))
     try:
         ref = blind_test.load_reference(ctx.sid)
     except KeyError:
-        st.info("No reference answers for this scenario.")
+        st.info("No reference answers for this scenario · لا توجد إجابات مرجعية لهذا السيناريو.")
         return
 
-    tab_engine, tab_analyst = st.tabs(["Score the engine", "Score your own analysis"])
+    tab_engine, tab_analyst = st.tabs([bi("Score the engine"), bi("Score your own analysis")])
     with tab_engine:
-        st.markdown("Runs the engine's current analysis through the scorer.")
-        if st.button("Run Blind Test", type="primary", key="bt_run"):
+        st.markdown(with_ar("Runs the engine's current analysis through the scorer."))
+        if st.button(bi("Run Blind Test"), type="primary", key="bt_run"):
             sub = blind_test.submission_from_analysis(ctx.result)
             st.session_state["bt_engine"] = (ctx.sid, blind_test.score(sub, ref))
         score = session_get("bt_engine", ctx.sid)
@@ -483,21 +550,21 @@ def page_blind_test(ctx: Ctx) -> None:
             _show_score(score, ctx, "engine")
 
     with tab_analyst:
-        st.markdown("Make your own call from the Evidence page, then see how you score.")
+        st.markdown(with_ar("Make your own call from the Evidence page, then see how you score."))
         hyps = [h.id for h in ctx.cfg.hypotheses]
-        names = {h.id: h.name for h in ctx.cfg.hypotheses}
+        names = {h.id: bi_plain(h.name) for h in ctx.cfg.hypotheses}
         claims = [o for o in ctx.obs if o.source_type in ("operator_log", "inspection")]
         catalogue = ctx.cfg.required_evidence_catalogue()
         with st.form("analyst_bt"):
-            first = st.selectbox("Most likely root cause", hyps, format_func=names.get)
-            second = st.selectbox("Second most likely", hyps, index=1, format_func=names.get)
+            first = st.selectbox(bi("Most likely root cause"), hyps, format_func=names.get)
+            second = st.selectbox(bi("Second most likely"), hyps, index=1, format_func=names.get)
             contra = st.multiselect(
-                "Records involved in contradictions", [o.record_id for o in claims],
+                bi("Records involved in contradictions"), [o.record_id for o in claims],
                 format_func=lambda rid: f"{rid} — "
                 + next(o.text for o in claims if o.record_id == rid)[:60])
-            miss = st.multiselect("Evidence that is missing or out of date", list(catalogue),
-                                  format_func=catalogue.get)
-            submitted = st.form_submit_button("Score my analysis", type="primary")
+            miss = st.multiselect(bi("Evidence that is missing or out of date"), list(catalogue),
+                                  format_func=lambda k: bi_plain(catalogue[k]))
+            submitted = st.form_submit_button(bi("Score my analysis"), type="primary")
         if submitted:
             ranking = [first] + ([second] if second != first else [])
             sub = blind_test.Submission(ranking, set(contra), set(miss), source="analyst")
@@ -508,17 +575,18 @@ def page_blind_test(ctx: Ctx) -> None:
 
 
 def page_cost(ctx: Ctx) -> None:
-    st.title("💷 Cost impact simulator")
-    st.caption("Low / base / high totals with every assumption and formula visible. "
-               "All figures are illustrative synthetic values.")
+    page_header("💷", "Cost impact simulator",
+                "Low / base / high totals with every assumption and formula visible. "
+                "All figures are illustrative synthetic values.")
     hyps = [a.hypothesis_id for a in ctx.result.assessments]
-    names = {a.hypothesis_id: f"{a.name} ({pct(a.confidence)})" for a in ctx.result.assessments}
-    hid = st.selectbox("Cost the repair for", hyps, format_func=names.get, key="cost_h")
+    names = {a.hypothesis_id: f"{bi_plain(a.name)} ({pct(a.confidence)})"
+             for a in ctx.result.assessments}
+    hid = st.selectbox(bi("Cost the repair for"), hyps, format_func=names.get, key="cost_h")
 
     base_assumptions = ctx.costs
     prof = base_assumptions["profiles"][hid]
     overrides: dict[str, dict[str, float]] = {}
-    with st.expander("Adjust assumptions (this session only)"):
+    with st.expander(bi("Adjust assumptions (this session only)")):
         fields = [("downtime_hours", "Downtime (hours)", prof["downtime_hours"]),
                   ("labour_hours", "Labour (hours)", prof["labour_hours"]),
                   ("parts", "Parts (£)", prof["parts"]),
@@ -527,135 +595,155 @@ def page_cost(ctx: Ctx) -> None:
                   ("labour_rate_per_hour", "Labour rate (£/hour)",
                    base_assumptions["labour_rate_per_hour"])]
         for key, label, rng in fields:
-            st.markdown(f"**{label}**")
+            st.markdown(f"**{bi(label)}**")
             cols = st.columns(3)
             overrides[key] = {
-                case: cols[i].number_input(case.title(), min_value=0.0, value=float(rng[case]),
+                case: cols[i].number_input(f"{case.title()} :gray[{CASE_AR[case]}]",
+                                           min_value=0.0, value=float(rng[case]),
                                            key=f"cost_{hid}_{key}_{case}")
                 for i, case in enumerate(cost_model.CASES)
             }
     try:
         assumptions = cost_model.with_overrides(base_assumptions, hid, overrides)
     except ConfigError as exc:
-        st.error(f"Invalid assumptions: {exc}. Using the default values instead.")
+        st.error(f"Invalid assumptions · افتراضات غير صحيحة: {exc}. Using the default values instead.")
         assumptions = base_assumptions
 
     est = cost_model.estimate(hid, assumptions)
     t = est.totals
-    st.markdown(f"**Repair scope:** {est.description}")
+    st.markdown(f"**{bi('Repair scope')}:** {est.description}")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Low", money(t["low"], ctx))
-    c2.metric("Base", money(t["base"], ctx))
-    c3.metric("High", money(t["high"], ctx))
+    c1.metric(f"Low :gray[{CASE_AR['low']}]", money(t["low"], ctx))
+    c2.metric(f"Base :gray[{CASE_AR['base']}]", money(t["base"], ctx))
+    c3.metric(f"High :gray[{CASE_AR['high']}]", money(t["high"], ctx))
 
     left, right = st.columns([3, 2])
     with left:
         st.plotly_chart(cost_chart(est), key="cost_chart")
     with right:
-        st.markdown("**Breakdown**")
-        st.dataframe([{"Component": line.component, "Formula": line.formula,
-                       "Low": money(line.low, ctx), "Base": money(line.base, ctx),
-                       "High": money(line.high, ctx)} for line in est.lines], hide_index=True)
-        st.markdown("**Inputs used**")
-        st.dataframe([{"Input": k.replace("_", " "), "Low": v["low"], "Base": v["base"],
-                       "High": v["high"]} for k, v in est.inputs.items()], hide_index=True)
+        st.markdown(f"**{bi('Breakdown')}**")
+        st.dataframe([{"Component · العنصر": bi_plain(line.component),
+                       "Formula · المعادلة": line.formula,
+                       "Low · منخفض": money(line.low, ctx), "Base · أساسي": money(line.base, ctx),
+                       "High · مرتفع": money(line.high, ctx)} for line in est.lines],
+                     hide_index=True)
+        st.markdown(f"**{bi('Inputs used')}**")
+        st.dataframe([{"Input · المدخل": k.replace("_", " "), "Low · منخفض": v["low"],
+                       "Base · أساسي": v["base"], "High · مرتفع": v["high"]}
+                      for k, v in est.inputs.items()], hide_index=True)
 
-    st.subheader("Confidence-weighted base cost")
+    st.subheader(bi("Confidence-weighted base cost"))
     w = cost_model.weighted_estimate(ctx.result.assessments, assumptions)
     if w is None:
-        st.info("All hypotheses have zero confidence, so no weighted estimate is possible.")
+        st.info("All hypotheses have zero confidence, so no weighted estimate is possible. "
+                "كل الفرضيات ثقتها صفر، فلا يمكن حساب تقدير موزون.")
     else:
-        st.metric("Expected base cost across hypotheses", money(w["value"], ctx))
-        st.dataframe([{"Hypothesis": x["hypothesis"], "Confidence": pct(x["confidence"]),
-                       "Weight": pct(x["weight"]), "Base total": money(x["base_total"], ctx),
-                       "Contribution": money(x["contribution"], ctx)} for x in w["rows"]],
-                     hide_index=True)
+        st.metric(bi("Expected base cost across hypotheses"), money(w["value"], ctx))
+        st.dataframe([{"Hypothesis · الفرضية": bi_plain(x["hypothesis"]),
+                       "Confidence · الثقة": pct(x["confidence"]),
+                       "Weight · الوزن": pct(x["weight"]),
+                       "Base total · الإجمالي الأساسي": money(x["base_total"], ctx),
+                       "Contribution · المساهمة": money(x["contribution"], ctx)}
+                      for x in w["rows"]], hide_index=True)
         st.caption("Weight = hypothesis confidence ÷ sum of all confidences. "
-                   "Expected cost = Σ weight × base total.")
+                   "Expected cost = Σ weight × base total.  \n"
+                   + gray("الوزن = ثقة الفرضية ÷ مجموع الثقة. التكلفة المتوقعة = مجموع (الوزن × الإجمالي الأساسي)."))
 
 
 def page_history(ctx: Ctx) -> None:
-    st.title("🗂️ Investigation history")
+    page_header("🗂️", "Investigation history")
     st.warning(PERSISTENCE_FULL)
 
     entries_all = ctx.store.list_history()
     e1, e2 = st.columns(2)
     with e1:
-        st.markdown("**Export history**")
+        st.markdown(f"**{bi('Export history')}**")
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
-        st.download_button(f"⬇️ Download history ({len(entries_all)} entries, JSON)",
+        st.download_button(f"⬇️ Download history · تنزيل السجل ({len(entries_all)} entries, JSON)",
                            data=ctx.store.export_history_json(),
                            file_name=f"plantproof_history_{stamp}.json",
                            mime="application/json", key="hist_export")
     with e2:
-        st.markdown("**Import history**")
-        upload = st.file_uploader("PlantProof history JSON", type=["json"], key="hist_upload")
-        if upload is not None and st.button("Import file", key="hist_import"):
+        st.markdown(f"**{bi('Import history')}**")
+        upload = st.file_uploader("PlantProof history JSON :gray[ملف السجل]", type=["json"],
+                                  key="hist_upload")
+        if upload is not None and st.button(bi("Import file"), key="hist_import"):
             try:
                 res = ctx.store.import_history(upload.getvalue())
-                st.success(f"Imported {res['inserted']} entries "
-                           f"({res['skipped']} already present).")
+                st.success(f"Imported {res['inserted']} entries ({res['skipped']} already present). "
+                           f"{gray('تم الاستيراد.')}")
             except ValueError as exc:
                 st.error(str(exc))
 
-    show_all = st.checkbox("Show all scenarios", key="hist_all")
+    show_all = st.checkbox(bi("Show all scenarios"), key="hist_all")
     labels = {"investigation": "Investigations", "whatif": "What If runs",
               "blind_test": "Blind Tests", "handover": "Handovers"}
-    tabs = st.tabs(list(labels.values()))
+    tabs = st.tabs([bi(v) for v in labels.values()])
     for tab, kind in zip(tabs, labels):
         with tab:
             items = ctx.store.list_history(kind, None if show_all else ctx.sid)
             if not items:
-                st.caption("Nothing saved yet.")
+                st.caption(with_ar("Nothing saved yet."))
             for item in items:
                 with st.expander(f"{item['title']} · {item['created_at']} · scenario "
                                  f"{item['scenario_id']}"):
                     p = item["payload"]
                     if kind == "investigation":
-                        st.markdown(f"**Leading hypothesis:** {p.get('leading_hypothesis')} "
+                        st.markdown(f"**{bi('Leading hypothesis')}:** {p.get('leading_hypothesis')} "
                                     f"({pct(p.get('confidence') or 0)})  \n"
-                                    f"**Analyst role:** {p.get('analyst_role') or '—'}  \n"
-                                    f"**Notes:** {p.get('notes') or '—'}")
+                                    f"**{bi('Analyst role')}:** {p.get('analyst_role') or '—'}  \n"
+                                    f"**{bi('Notes')}:** {p.get('notes') or '—'}")
                     elif kind == "whatif":
-                        st.markdown(f"**Changes:** {'; '.join(p.get('change_descriptions', []))}  \n"
-                                    f"**Result:** {p.get('summary')}")
+                        st.markdown(f"**{bi('Changes')}:** "
+                                    f"{'; '.join(p.get('change_descriptions', []))}  \n"
+                                    f"**Result :gray[النتيجة]:** {p.get('summary')}")
                     elif kind == "blind_test":
-                        st.markdown(f"**Score:** {p.get('total')} / 100 ({p.get('grade')})")
+                        st.markdown(f"**Score :gray[النتيجة]:** {p.get('total')} / 100 "
+                                    f"({p.get('grade')})")
                     elif kind == "handover":
                         st.markdown(p.get("markdown", ""))
                     st.json(p, expanded=False)
-                    if st.button("Delete", key=f"del_{item['uid']}"):
+                    if st.button(bi("Delete"), key=f"del_{item['uid']}"):
                         ctx.store.delete(item["uid"])
                         st.rerun()
 
-    with st.expander("Danger zone"):
-        confirm = st.checkbox("I understand this cannot be undone", key="hist_confirm")
+    with st.expander(bi("Danger zone")):
+        confirm = st.checkbox(bi("I understand this cannot be undone"), key="hist_confirm")
         d1, d2 = st.columns(2)
-        if d1.button("Clear all history", disabled=not confirm, key="hist_clear"):
+        if d1.button(bi("Clear all history"), disabled=not confirm, key="hist_clear"):
             n = ctx.store.clear_history()
-            st.success(f"Deleted {n} entries.")
-        if d2.button("Reset demo observations", disabled=not confirm, key="hist_reset"):
+            st.success(f"Deleted {n} entries · حُذفت {n} عناصر.")
+        if d2.button(bi("Reset demo observations"), disabled=not confirm, key="hist_reset"):
             n = ctx.store.reset_observations()
             for k in ("whatif_result", "bt_engine", "bt_analyst", "handover_doc"):
                 st.session_state.pop(k, None)
-            st.success(f"Re-seeded {n} demo records. History kept.")
+            st.success(f"Re-seeded {n} demo records. History kept. "
+                       f"{gray('أُعيد تحميل بيانات العرض، والسجل محفوظ.')}")
+
+
+def _bilingual_report(md: str) -> str:
+    """Add grey Arabic to the report's section headings (on-screen preview only)."""
+    for h in HANDOVER_HEADINGS:
+        md = md.replace(f"\n## {h}\n", f"\n## {h} :gray[{ar(h)}]\n")
+    return md
 
 
 def page_handover(ctx: Ctx) -> None:
-    st.title("🔁 Shift handover")
-    st.caption("Built from engine findings and your notes - no AI text generation. "
-               "Use role names, not personal names: this demo is public.")
+    page_header("🔁", "Shift handover",
+                "Built from engine findings and your notes - no AI text generation. "
+                "Use role names, not personal names: this demo is public.")
     last_whatif = session_get("whatif_result", ctx.sid)
     with st.form("handover_form"):
-        shift = st.selectbox("Shift", ["Day shift (06:00–18:00)", "Night shift (18:00–06:00)"])
+        shift = st.selectbox(bi("Shift"), ["Day shift (06:00–18:00)", "Night shift (18:00–06:00)"],
+                             format_func=bi_plain)
         c1, c2 = st.columns(2)
-        outgoing = c1.text_input("Outgoing (role)", placeholder="e.g. Day shift lead")
-        incoming = c2.text_input("Incoming (role)", placeholder="e.g. Night shift lead")
-        include_cost = st.checkbox("Include cost impact for the leading hypothesis", value=True)
-        include_wi = st.checkbox("Include latest What If result", value=last_whatif is not None,
-                                 disabled=last_whatif is None)
-        notes = st.text_area("Notes for the incoming shift", max_chars=handover.MAX_NOTES)
-        go_ = st.form_submit_button("Generate handover", type="primary")
+        outgoing = c1.text_input(bi("Outgoing (role)"), placeholder="e.g. Day shift lead")
+        incoming = c2.text_input(bi("Incoming (role)"), placeholder="e.g. Night shift lead")
+        include_cost = st.checkbox(bi("Include cost impact for the leading hypothesis"), value=True)
+        include_wi = st.checkbox(bi("Include latest What If result"),
+                                 value=last_whatif is not None, disabled=last_whatif is None)
+        notes = st.text_area(bi("Notes for the incoming shift"), max_chars=handover.MAX_NOTES)
+        go_ = st.form_submit_button(bi("Generate handover"), type="primary")
     if go_:
         top = ctx.result.top
         est = cost_model.estimate(top.hypothesis_id, ctx.costs) if (include_cost and top) else None
@@ -669,25 +757,26 @@ def page_handover(ctx: Ctx) -> None:
     if doc:
         md = doc.to_markdown()
         with st.container(border=True):
-            st.markdown(md)
+            st.markdown(_bilingual_report(md))
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         d1, d2, d3 = st.columns(3)
-        d1.download_button("⬇️ Markdown report", md, file_name=f"handover_{ctx.sid}_{stamp}.md",
+        d1.download_button(f"⬇️ {bi('Markdown report')}", md,
+                           file_name=f"handover_{ctx.sid}_{stamp}.md",
                            mime="text/markdown", key="ho_md")
-        d2.download_button("⬇️ JSON data", doc.to_json(),
+        d2.download_button(f"⬇️ {bi('JSON data')}", doc.to_json(),
                            file_name=f"handover_{ctx.sid}_{stamp}.json",
                            mime="application/json", key="ho_json")
-        if d3.button("Save to History", key="ho_save"):
+        if d3.button(bi("Save to History"), key="ho_save"):
             ctx.store.save("handover", ctx.sid, f"Handover · {doc.shift}",
                            doc.to_dict() | {"markdown": md})
-            st.success("Handover saved.")
+            st.success(with_ar("Handover saved."))
 
     previous = ctx.store.list_history("handover", ctx.sid)
     if previous:
-        st.subheader("Previous handovers")
+        st.subheader(bi("Previous handovers"))
         for item in previous[:10]:
             with st.expander(f"{item['title']} · {item['created_at']}"):
-                st.markdown(item["payload"].get("markdown", ""))
+                st.markdown(_bilingual_report(item["payload"].get("markdown", "")))
 
 
 # ---------------------------------------------------------------------------- main
@@ -700,15 +789,17 @@ def main() -> None:
         return
 
     st.sidebar.title("🏭 PlantProof AI")
-    st.sidebar.caption("Evidence-first investigations for plant incidents")
-    page = st.sidebar.radio("Navigate", PAGES, key="page",
-                            format_func=lambda p: f"{PAGE_ICONS[p]} {p}")
+    st.sidebar.caption(with_ar("Evidence-first investigations for plant incidents"))
+    page = st.sidebar.radio(bi("Navigate"), PAGES, key="page",
+                            format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
     titles = {s["id"]: s["title"] for s in index}
-    sid = st.sidebar.selectbox("Scenario", list(titles), format_func=titles.get, key="scenario")
+    sid = st.sidebar.selectbox(bi("Scenario"), list(titles),
+                               format_func=lambda k: bi_plain(titles[k]), key="scenario")
     st.sidebar.divider()
-    st.sidebar.warning(PERSISTENCE_SHORT, icon="💾")
-    st.sidebar.caption(f"v{__version__} · Synthetic demo data only · Rule-based analysis, "
-                       "no external AI or API keys.")
+    st.sidebar.warning(with_ar(PERSISTENCE_SHORT), icon="💾")
+    st.sidebar.caption(f"v{__version__} · "
+                       + with_ar("Synthetic demo data only · Rule-based analysis, "
+                                 "no external AI or API keys."))
 
     meta = next(s for s in index if s["id"] == sid)
     obs = store.observations(sid)

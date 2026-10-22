@@ -140,6 +140,15 @@ AR: dict[str, str] = {
     "Handheld vibration vs online vibration sensor disagree":
         "الجهاز اليدوي والحساس المباشر غير متفقين",
 
+    # --- advisor
+    "Advisor": "المساعد الذكي",
+    "Engineering advisor": "المساعد الهندسي",
+    "Rule-based assistant: every answer comes from this investigation's evidence and What If simulations. No external AI.":
+        "مساعد مبني على القواعد: كل إجابة من أدلة هذا التحقيق ومحاكاة ماذا لو، بدون ذكاء اصطناعي خارجي.",
+    "Suggested questions": "أسئلة مقترحة",
+    "Clear conversation": "امسح المحادثة",
+    "Ask a question about this investigation, then use the suggested questions or type your own.":
+        "اسأل عن هذا التحقيق: استخدم الأسئلة المقترحة أو اكتب سؤالك.",
     # --- what if
     "What If simulations": "محاكاة ماذا لو",
     "Changes are applied to a copy of the data. Original observations are never modified - each run proves this with a fingerprint check.":

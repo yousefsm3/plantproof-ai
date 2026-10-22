@@ -17,7 +17,7 @@ from pathlib import Path
 import plotly.graph_objects as go
 import streamlit as st
 
-from plantproof import __version__, blind_test, cost_model, handover, whatif
+from plantproof import __version__, advisor, blind_test, cost_model, handover, whatif
 from plantproof.domain import (SOURCE_TYPES, AnalysisResult, ConfigError, EngineConfig,
                                Finding, Observation, load_engine_config,
                                load_scenario_index)
@@ -28,8 +28,10 @@ from plantproof.translations import ar, bi, bi_plain
 st.set_page_config(page_title="PlantProof AI", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="expanded")
 
-PAGES = ("Overview", "Evidence", "What If", "Blind Test", "Cost", "History", "Handover")
+PAGES = ("Overview", "Evidence", "Advisor", "What If", "Blind Test", "Cost", "History",
+         "Handover")
 PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_search:",
+              "Advisor": ":material/psychology:",
               "What If": ":material/science:", "Blind Test": ":material/fact_check:",
               "Cost": ":material/payments:", "History": ":material/history:",
               "Handover": ":material/sync_alt:"}
@@ -490,6 +492,55 @@ Rules, weights and thresholds live in `config/hypotheses.json`.
             st.success(with_ar("Investigation saved to History. Remember to export history to keep it."))
 
 
+STATUS_ICON = {"pass": ":green[:material/check_circle:]", "fail": ":red[:material/cancel:]",
+               "info": ":gray[:material/arrow_right:]"}
+
+
+def _render_answer(ans: advisor.AdvisorAnswer) -> None:
+    st.markdown(f"**{ans.title_en}**  \n{gray(ans.title_ar)}")
+    for item in ans.items:
+        icon = STATUS_ICON.get(item.status or "info", "")
+        st.markdown(f"{icon} {item.en}  \n{gray(item.ar)}")
+        if item.record_ids:
+            st.caption(f"{bi('Source records')}: {ids_text(item.record_ids, 8)}")
+    if ans.note_en:
+        st.caption(f"{ans.note_en}  \n{gray(ans.note_ar)}")
+
+
+def page_advisor(ctx: Ctx) -> None:
+    page_header(PAGE_ICONS["Advisor"], "Engineering advisor",
+                "Rule-based assistant: every answer comes from this investigation's evidence "
+                "and What If simulations. No external AI.")
+    chat = session_get("advisor_chat", ctx.sid) or []
+
+    st.markdown(f"**{bi('Suggested questions')}**")
+    cols = st.columns(len(advisor.SUGGESTED))
+    asked = None
+    for col, (en, ar_text, intent) in zip(cols, advisor.SUGGESTED):
+        if col.button(f"{en} :small[:gray[{ar_text}]]", key=f"adv_{intent}"):
+            asked = en
+    typed = st.chat_input("Ask about this investigation · اسأل عن هذا التحقيق", key="adv_input")
+    if typed:
+        asked = typed.strip()[:300]
+    if asked:
+        ans = advisor.answer(asked, ctx.obs, ctx.cfg, ctx.result, ctx.costs)
+        chat = chat + [(asked, ans)]
+        st.session_state["advisor_chat"] = (ctx.sid, chat)
+
+    if not chat:
+        st.info(with_ar("Ask a question about this investigation, then use the suggested "
+                        "questions or type your own."))
+        return
+    for q, ans in chat:
+        with st.chat_message("user", avatar=":material/engineering:"):
+            st.markdown(q)
+        with st.chat_message("assistant", avatar=":material/psychology:"):
+            _render_answer(ans)
+    if st.button(bi("Clear conversation"), key="adv_clear"):
+        st.session_state.pop("advisor_chat", None)
+        st.rerun()
+
+
 def _whatif_presets(sid: str) -> dict[str, list[whatif.WhatIfChange]]:
     C = whatif.WhatIfChange
     return {
@@ -927,7 +978,8 @@ def main() -> None:
         obs = store.observations(sid)
     ctx = Ctx(store, cfg, costs, meta, sid, obs, analyse(obs, cfg, sid))
 
-    {"Overview": page_overview, "Evidence": page_evidence, "What If": page_whatif,
+    {"Overview": page_overview, "Evidence": page_evidence, "Advisor": page_advisor,
+     "What If": page_whatif,
      "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,
      "Handover": page_handover}[page](ctx)
 

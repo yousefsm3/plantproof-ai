@@ -15,7 +15,8 @@ from tests.fake_streamlit import (FakeStreamlit, RerunSignal, SessionState,
                                   make_plotly_modules)
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
-PAGES = ("Overview", "Evidence", "What If", "Blind Test", "Cost", "History", "Handover")
+PAGES = ("Overview", "Evidence", "Advisor", "What If", "Blind Test", "Cost", "History",
+         "Handover")
 
 
 class AppSmokeTest(unittest.TestCase):
@@ -73,6 +74,14 @@ class AppSmokeTest(unittest.TestCase):
         fake = self.run_app({"page": "Handover", "scenario": "B"}, press=True, session=session)
         names = [c[2].get("file_name", "") for c in fake.calls if c[0] == "download_button"]
         self.assertTrue(any(n.endswith(".md") for n in names))
+
+    def test_advisor_chat_in_arabic(self):
+        session = SessionState()
+        fake = self.run_app({"page": "Advisor", "scenario": "B",
+                             "adv_input": "هل إعادة التشغيل آمنة؟"}, session=session)
+        self.assertEqual(self.errors(fake), [])
+        chat = session["advisor_chat"][1]
+        self.assertEqual(chat[-1][1].intent, "restart")
 
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})

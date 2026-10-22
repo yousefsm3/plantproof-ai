@@ -23,6 +23,7 @@ is a concept prototype for the energy sector and is not affiliated with or endor
 |---|---|
 | Overview | KPIs, sensor trends with alarm limits, hypothesis confidence, open contradictions and evidence gaps |
 | Evidence | Hypothesis ranking with the full scoring working, supporting/refuting/missing evidence, contradiction details, record tracing, raw records, save investigation |
+| Advisor | Rule-based engineering assistant (English or Arabic questions): what to check first (ranked by simulated impact), restart-readiness checklist, why the leader leads, action plan. No external AI |
 | What If | Presets or custom changes (ignore record types, override a value, scale a sensor, add hypothetical evidence). Runs on a copy; a fingerprint check proves the originals are unchanged |
 | Blind Test | Scores the engine, or your own analysis, against separately stored reference answers (100-point scale) |
 | Cost | Low / base / high repair cost with visible formulas and editable assumptions, plus a confidence-weighted expected cost |
@@ -61,6 +62,8 @@ plantproof/
   blind_test.py             scoring against reference answers
   cost_model.py             low/base/high cost simulator
   handover.py               shift handover summaries
+  advisor.py                rule-based engineering advisor
+  translations.py           Arabic glosses for the UI
   storage.py                SQLite storage, history export/import
 config/                     hypotheses.json, cost_assumptions.json
 assets/                     original logo and equipment line art (SVG)

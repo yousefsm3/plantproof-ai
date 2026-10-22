@@ -152,6 +152,10 @@ class FakeStreamlit:
     def file_uploader(self, label, key=None, **kw):
         return self._override(label, key, None)
 
+    def chat_input(self, placeholder="", key=None, **kw):
+        self._log("chat_input", placeholder)
+        return self._override(placeholder, key, None)
+
     def button(self, label, key=None, disabled=False, **kw):
         self._log("button", label)
         return False if disabled else self._override(label, key, self._press)

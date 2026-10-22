@@ -176,7 +176,7 @@ def inject_theme() -> None:
   background-image: url("{bg}");
   background-repeat: no-repeat;
   background-position: right -40px bottom -20px;
-  background-size: min(1100px, 95vw) auto;
+  background-size: min(1250px, 100vw) auto;
   background-attachment: fixed;
 }}
 [data-testid="stHeader"] {{ background: transparent; }}
@@ -188,7 +188,7 @@ def inject_theme() -> None:
   display: flex; align-items: center; gap: 16px; padding: 18px 22px; margin: -8px 0 18px 0;
   border-radius: 14px; color: #FFFFFF;
   background-color: #0B2545;
-  background-image: url("{svg_data_uri('equipment.svg', ('#0B2545', '#FFFFFF'), ('stroke-opacity="0.09"', 'stroke-opacity="0.22"'))}"),
+  background-image: url("{svg_data_uri('equipment.svg', ('#0B2545', '#FFFFFF'), ('stroke-opacity="0.2"', 'stroke-opacity="0.35"'))}"),
                     linear-gradient(120deg, #0B2545 0%, #13315C 55%, #1F4A7A 100%);
   background-repeat: no-repeat; background-position: right center; background-size: auto 140%, cover;
   box-shadow: 0 6px 18px rgba(11,37,69,0.18);

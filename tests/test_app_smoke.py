@@ -15,8 +15,7 @@ from tests.fake_streamlit import (FakeStreamlit, RerunSignal, SessionState,
                                   make_plotly_modules)
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
-PAGES = ("Overview", "Evidence", "Advisor", "What If", "Blind Test", "Cost", "History",
-         "Handover")
+PAGES = ("Overview", "Evidence", "What If", "Blind Test", "Cost", "History", "Handover")
 
 
 class AppSmokeTest(unittest.TestCase):
@@ -35,6 +34,13 @@ class AppSmokeTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def run_app(self, overrides, press=False, session=None):
+        overrides = dict(overrides)
+        overrides.setdefault("pp_advisor_side", False)   # "press all" must not jump pages
+        overrides.setdefault("pp_advisor_fab", False)
+        session = session if session is not None else SessionState()
+        if overrides.get("page") == "Advisor":       # Advisor opens from its own button
+            overrides["page"] = "Overview"
+            session["view"] = "Advisor"
         fake = FakeStreamlit(overrides, press_buttons=press, session=session)
         sys.modules["streamlit"] = fake
         sys.modules.update(make_plotly_modules())
@@ -110,6 +116,17 @@ class AppSmokeTest(unittest.TestCase):
         session["advisor_chat"] = ("A", [("old question", OldAnswer())])
         fake = self.run_app({"page": "Advisor", "scenario": "A"}, session=session)
         self.assertEqual(self.errors(fake), [])
+
+    def test_advisor_buttons_open_advisor(self):
+        session = SessionState()
+        fake = self.run_app({"page": "Overview", "scenario": "A", "pp_advisor_fab": True},
+                            session=session)
+        self.assertEqual(session.get("view"), "Advisor")
+        labels = [c[1][0] for c in fake.calls if c[0] == "button"]
+        self.assertTrue(any("AI Advisor" in str(x) for x in labels))
+        fake = self.run_app({"page": "Overview", "scenario": "A"}, session=session)
+        titles = " ".join(str(c[1]) for c in fake.calls if c[0] == "title")
+        self.assertIn("Engineering advisor", titles)
 
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})

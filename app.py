@@ -29,8 +29,8 @@ from plantproof.translations import ar, bi, bi_plain
 st.set_page_config(page_title="PlantProof AI", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="expanded")
 
-PAGES = ("Overview", "Evidence", "Advisor", "What If", "Blind Test", "Cost", "History",
-         "Handover")
+PAGES = ("Overview", "Evidence", "What If", "Blind Test", "Cost", "History", "Handover")
+ADVISOR = "Advisor"   # opened from its own highlighted button, not from the page list
 PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_search:",
               "Advisor": ":material/psychology:",
               "What If": ":material/science:", "Blind Test": ":material/fact_check:",
@@ -246,6 +246,19 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
   font-size: 1.55rem; line-height: 1.25; color: #0B2E2D;
 }}
 .pp-ar {{ font-size: .78em; opacity: .6; font-weight: 400; margin-inline-start: .45em; }}
+/* ---- AI Advisor: its own copper button, in the sidebar and floating ---- */
+.st-key-pp_advisor_side button, .st-key-pp_fab button {{
+  background: linear-gradient(135deg, #B8743A 0%, #8F5326 100%) !important;
+  color: #FFFFFF !important; border: none !important; font-weight: 700 !important;
+  box-shadow: 0 6px 16px rgba(143,83,38,0.35) !important;
+}}
+.st-key-pp_advisor_side button {{ width: 100%; padding: 10px 14px !important; margin: 6px 0 10px; }}
+.st-key-pp_advisor_side button:hover, .st-key-pp_fab button:hover {{ filter: brightness(1.08); }}
+.st-key-pp_advisor_side button *, .st-key-pp_fab button * {{ color: #FFFFFF !important; }}
+.st-key-pp_fab {{
+  position: fixed; right: 28px; bottom: 84px; z-index: 1000; width: auto !important;
+}}
+.st-key-pp_fab button {{ border-radius: 999px !important; padding: 12px 20px !important; }}
 .pp-rtl {{ direction: rtl; text-align: right; unicode-bidi: isolate; color: #6B7B7A;
   font-size: .86rem; line-height: 1.6; margin: -6px 0 8px 0; }}
 .pp-rtl-title {{ font-size: .95rem; font-weight: 600; margin-top: -10px; }}
@@ -261,6 +274,14 @@ def report_html(doc: handover.Handover) -> str:
     logo = (ASSETS / "logo.svg").read_text(encoding="utf-8")
     logo = logo[logo.index("<svg"):]
     return doc.to_html(logo_svg=logo)
+
+
+def open_advisor() -> None:
+    st.session_state["view"] = ADVISOR
+
+
+def close_advisor() -> None:
+    st.session_state["view"] = None
 
 
 def sidebar_brand() -> None:
@@ -998,8 +1019,11 @@ def main() -> None:
     inject_theme()
     sidebar_brand()
     st.sidebar.caption(with_ar("Evidence-first investigations for plant incidents"))
-    page = st.sidebar.radio(bi("Navigate"), PAGES, key="page",
-                            format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
+    st.sidebar.button(f"{PAGE_ICONS[ADVISOR]} AI Advisor · المساعد الذكي", key="pp_advisor_side",
+                      on_click=open_advisor, type="primary")
+    nav = st.sidebar.radio(bi("Navigate"), PAGES, key="page", on_change=close_advisor,
+                           format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
+    page = ADVISOR if st.session_state.get("view") == ADVISOR else nav
     titles = {s["id"]: s["title"] for s in index}
     sid = st.sidebar.selectbox(bi("Scenario"), list(titles),
                                format_func=lambda k: bi_plain(titles[k]), key="scenario")
@@ -1017,6 +1041,10 @@ def main() -> None:
         obs = store.observations(sid)
     ctx = Ctx(store, cfg, costs, meta, sid, obs, analyse(obs, cfg, sid))
 
+    if page != ADVISOR:
+        with st.container(key="pp_fab"):
+            st.button(f"{PAGE_ICONS[ADVISOR]} Ask the AI Advisor · اسأل المساعد",
+                      key="pp_advisor_fab", on_click=open_advisor)
     {"Overview": page_overview, "Evidence": page_evidence, "Advisor": page_advisor,
      "What If": page_whatif,
      "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,

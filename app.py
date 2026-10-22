@@ -25,12 +25,14 @@ from plantproof.evidence_engine import analyse
 from plantproof.storage import Store
 from plantproof.translations import ar, bi, bi_plain
 
-st.set_page_config(page_title="PlantProof AI", page_icon="🏭", layout="wide",
+st.set_page_config(page_title="PlantProof AI", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="expanded")
 
 PAGES = ("Overview", "Evidence", "What If", "Blind Test", "Cost", "History", "Handover")
-PAGE_ICONS = {"Overview": "📊", "Evidence": "🔎", "What If": "🧪", "Blind Test": "🎯",
-              "Cost": "💷", "History": "🗂️", "Handover": "🔁"}
+PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_search:",
+              "What If": ":material/science:", "Blind Test": ":material/fact_check:",
+              "Cost": ":material/payments:", "History": ":material/history:",
+              "Handover": ":material/sync_alt:"}
 PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing temp (°C)",
                 "discharge_pressure_bar": "Discharge pressure (bar)",
                 "motor_current_a": "Motor current (A)"}
@@ -326,7 +328,7 @@ def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
 # --------------------------------------------------------------------------- pages
 def page_overview(ctx: Ctx) -> None:
     r, top = ctx.result, ctx.result.top
-    st.title(f"🏭 {bi(ctx.meta['asset_name'])}")
+    st.title(f":material/factory: {bi(ctx.meta['asset_name'])}")
     st.caption(f"{bi(ctx.meta['title'])} · {bi('analysis window')} "
                f"{r.window_start.replace('T', ' ')} → {r.window_end.replace('T', ' ')}")
     st.info(ctx.meta["summary"] + "  \n:small[:gray[توقفت المضخة P-301 بسبب إنذار اهتزاز عالٍ وتوقف "
@@ -370,14 +372,14 @@ def page_overview(ctx: Ctx) -> None:
 
     a, b = st.columns(2)
     with a:
-        st.subheader(f"⚠️ {bi('Contradictions')}")
+        st.subheader(f":material/report: {bi('Contradictions')}")
         if not r.contradictions:
             st.success(with_ar("No contradictions detected."))
         for f in r.contradictions:
             with st.container(border=True, key=f"pp_contra_ov_{f.finding_id}"):
                 show_finding(f)
     with b:
-        st.subheader(f"🧩 {bi('Missing evidence')}")
+        st.subheader(f":material/pending_actions: {bi('Missing evidence')}")
         if not r.missing:
             st.success(with_ar("All required evidence is present."))
         for f in r.missing:
@@ -390,7 +392,7 @@ def page_overview(ctx: Ctx) -> None:
 
 def page_evidence(ctx: Ctx) -> None:
     r = ctx.result
-    page_header("🔎", "Evidence engine",
+    page_header(PAGE_ICONS["Evidence"], "Evidence engine",
                 "Every conclusion below links to the source record IDs it is based on.")
 
     st.subheader(bi("Hypothesis ranking"))
@@ -506,7 +508,7 @@ def _whatif_presets(sid: str) -> dict[str, list[whatif.WhatIfChange]]:
 
 
 def page_whatif(ctx: Ctx) -> None:
-    page_header("🧪", "What If simulations",
+    page_header(PAGE_ICONS["What If"], "What If simulations",
                 "Changes are applied to a copy of the data. Original observations are never "
                 "modified - each run proves this with a fingerprint check.")
 
@@ -583,7 +585,7 @@ def page_whatif(ctx: Ctx) -> None:
     f1.metric(bi("Original data fingerprint (before → after)"),
               f"{res.fingerprint_before[:8]} → {res.fingerprint_after[:8]}")
     if ok:
-        f2.success("✅ " + with_ar("Original observations unchanged (memory and database checked)."))
+        f2.success(":material/verified: " + with_ar("Original observations unchanged (memory and database checked)."))
     else:
         f2.error("Original observations changed - please report this bug. "
                  "البيانات الأصلية تغيرت، يرجى الإبلاغ عن هذا الخطأ.")
@@ -642,7 +644,7 @@ def _show_score(score: blind_test.BlindTestScore, ctx: Ctx, key: str) -> None:
 
 
 def page_blind_test(ctx: Ctx) -> None:
-    page_header("🎯", "Blind Test",
+    page_header(PAGE_ICONS["Blind Test"], "Blind Test",
                 "Scores an analysis against reference answers stored separately in "
                 "data/reference_answers.json. The evidence engine never reads that file "
                 "(a unit test enforces this).")
@@ -690,7 +692,7 @@ def page_blind_test(ctx: Ctx) -> None:
 
 
 def page_cost(ctx: Ctx) -> None:
-    page_header("💷", "Cost impact simulator",
+    page_header(PAGE_ICONS["Cost"], "Cost impact simulator",
                 "Low / base / high totals with every assumption and formula visible. "
                 "All figures are illustrative synthetic values.")
     hyps = [a.hypothesis_id for a in ctx.result.assessments]
@@ -766,7 +768,7 @@ def page_cost(ctx: Ctx) -> None:
 
 
 def page_history(ctx: Ctx) -> None:
-    page_header("🗂️", "Investigation history")
+    page_header(PAGE_ICONS["History"], "Investigation history")
     st.warning(PERSISTENCE_FULL)
 
     entries_all = ctx.store.list_history()
@@ -774,7 +776,7 @@ def page_history(ctx: Ctx) -> None:
     with e1:
         st.markdown(f"**{bi('Export history')}**")
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
-        st.download_button(f"⬇️ Download history · تنزيل السجل ({len(entries_all)} entries, JSON)",
+        st.download_button(f":material/download: Download history · تنزيل السجل ({len(entries_all)} entries, JSON)",
                            data=ctx.store.export_history_json(),
                            file_name=f"plantproof_history_{stamp}.json",
                            mime="application/json", key="hist_export")
@@ -844,7 +846,7 @@ def _bilingual_report(md: str) -> str:
 
 
 def page_handover(ctx: Ctx) -> None:
-    page_header("🔁", "Shift handover",
+    page_header(PAGE_ICONS["Handover"], "Shift handover",
                 "Built from engine findings and your notes - no AI text generation. "
                 "Use role names, not personal names: this demo is public.")
     last_whatif = session_get("whatif_result", ctx.sid)
@@ -875,10 +877,10 @@ def page_handover(ctx: Ctx) -> None:
             st.markdown(_bilingual_report(md))
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         d1, d2, d3 = st.columns(3)
-        d1.download_button(f"⬇️ {bi('Markdown report')}", md,
+        d1.download_button(f":material/download: {bi('Markdown report')}", md,
                            file_name=f"handover_{ctx.sid}_{stamp}.md",
                            mime="text/markdown", key="ho_md")
-        d2.download_button(f"⬇️ {bi('JSON data')}", doc.to_json(),
+        d2.download_button(f":material/download: {bi('JSON data')}", doc.to_json(),
                            file_name=f"handover_{ctx.sid}_{stamp}.json",
                            mime="application/json", key="ho_json")
         if d3.button(bi("Save to History"), key="ho_save"):
@@ -912,7 +914,7 @@ def main() -> None:
     sid = st.sidebar.selectbox(bi("Scenario"), list(titles),
                                format_func=lambda k: bi_plain(titles[k]), key="scenario")
     st.sidebar.divider()
-    st.sidebar.warning(with_ar(PERSISTENCE_SHORT), icon="💾")
+    st.sidebar.warning(with_ar(PERSISTENCE_SHORT), icon=":material/save:")
     st.sidebar.caption(f"v{__version__} · "
                        + with_ar("Synthetic demo data only · Rule-based analysis, "
                                  "no external AI or API keys."))

@@ -1,0 +1,22 @@
+# Local SQLite database and runtime files - never commit
+.runtime/
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets - this project needs none; never commit any
+.streamlit/secrets.toml
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

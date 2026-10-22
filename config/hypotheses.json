@@ -1,0 +1,123 @@
+{
+  "_comment": "Engine rules for PlantProof AI. Synthetic demo configuration - edit thresholds, weights and hypotheses here. No secrets belong in this file.",
+  "alarm_limits": {
+    "vibration_mm_s": {"alarm": 7.1, "direction": "high", "unit": "mm/s"},
+    "bearing_temp_c": {"alarm": 80.0, "direction": "high", "unit": "°C"},
+    "discharge_pressure_bar": {"alarm": 3.0, "direction": "low", "unit": "bar"},
+    "motor_current_a": {"alarm": 55.0, "direction": "high", "unit": "A"}
+  },
+  "contradiction_rules": {
+    "claim_window_h": 2,
+    "cross_checks": [
+      {
+        "label": "Handheld vibration vs online vibration sensor",
+        "reference_parameter": "handheld_vibration_mm_s",
+        "compare_parameter": "vibration_mm_s",
+        "window_h": 1,
+        "tolerance_pct": 30
+      }
+    ]
+  },
+  "scoring": {
+    "coverage_floor": 0.5,
+    "contested_penalty": 0.9,
+    "min_contested_factor": 0.7,
+    "high_threshold": 0.6,
+    "medium_threshold": 0.3
+  },
+  "hypotheses": [
+    {
+      "id": "bearing_wear",
+      "name": "Bearing wear",
+      "description": "Progressive degradation of the pump drive-end bearing.",
+      "supports": [
+        {"label": "Online vibration above alarm", "weight": 2, "source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1},
+        {"label": "Bearing temperature above alarm", "weight": 2, "source_type": "sensor", "parameter": "bearing_temp_c", "op": ">", "threshold": 80},
+        {"label": "Elevated iron in oil sample", "weight": 3, "source_type": "lab", "parameter": "oil_iron_ppm", "op": ">", "threshold": 50},
+        {"label": "Handheld vibration confirms high level", "weight": 2, "source_type": "inspection", "parameter": "handheld_vibration_mm_s", "op": ">", "threshold": 7.1}
+      ],
+      "refutes": [
+        {"label": "Oil iron content normal", "weight": 3, "source_type": "lab", "parameter": "oil_iron_ppm", "op": "<=", "threshold": 25},
+        {"label": "High vibration with normal bearing temperature", "weight": 2, "window_h": 1, "conditions": [
+          {"source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1},
+          {"source_type": "sensor", "parameter": "bearing_temp_c", "op": "<=", "threshold": 70}
+        ]}
+      ],
+      "required_evidence": [
+        {"source_type": "sensor", "parameter": "vibration_mm_s", "label": "Online vibration trend"},
+        {"source_type": "sensor", "parameter": "bearing_temp_c", "label": "Bearing temperature trend"},
+        {"source_type": "lab", "parameter": "oil_iron_ppm", "label": "Oil analysis (iron ppm)"}
+      ],
+      "recommended_actions": [
+        "Plan bearing replacement before restart",
+        "Inspect lubrication system and oil supply",
+        "Keep the failed bearing for root-cause inspection"
+      ]
+    },
+    {
+      "id": "sensor_fault",
+      "name": "Vibration sensor fault",
+      "description": "The online vibration transmitter is reading falsely high.",
+      "supports": [
+        {"label": "High vibration with normal bearing temperature", "weight": 3, "window_h": 1, "conditions": [
+          {"source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1},
+          {"source_type": "sensor", "parameter": "bearing_temp_c", "op": "<", "threshold": 70}
+        ]},
+        {"label": "Handheld vibration reading is normal", "weight": 3, "source_type": "inspection", "parameter": "handheld_vibration_mm_s", "op": "<", "threshold": 4.5}
+      ],
+      "refutes": [
+        {"label": "Handheld vibration confirms high level", "weight": 3, "source_type": "inspection", "parameter": "handheld_vibration_mm_s", "op": ">", "threshold": 7.1},
+        {"label": "Elevated iron in oil sample", "weight": 2, "source_type": "lab", "parameter": "oil_iron_ppm", "op": ">", "threshold": 50}
+      ],
+      "required_evidence": [
+        {"source_type": "calibration", "parameter": "vib_sensor_cal", "label": "Vibration sensor calibration (within 12 months)", "max_age_days": 365},
+        {"source_type": "inspection", "parameter": "handheld_vibration_mm_s", "label": "Independent handheld vibration check"}
+      ],
+      "recommended_actions": [
+        "Recalibrate or replace the vibration transmitter",
+        "Check sensor cabling and mounting",
+        "Restart under close monitoring with handheld checks"
+      ]
+    },
+    {
+      "id": "cavitation",
+      "name": "Pump cavitation",
+      "description": "Low suction pressure causing vapour bubbles and vibration.",
+      "supports": [
+        {"label": "Discharge pressure below alarm", "weight": 3, "source_type": "sensor", "parameter": "discharge_pressure_bar", "op": "<", "threshold": 3.0},
+        {"label": "Motor current dropped", "weight": 1, "source_type": "sensor", "parameter": "motor_current_a", "op": "<", "threshold": 36}
+      ],
+      "refutes": [
+        {"label": "Discharge pressure stable throughout", "weight": 2, "mode": "all", "source_type": "sensor", "parameter": "discharge_pressure_bar", "op": ">=", "threshold": 4.0}
+      ],
+      "required_evidence": [
+        {"source_type": "sensor", "parameter": "discharge_pressure_bar", "label": "Discharge pressure trend"},
+        {"source_type": "inspection", "parameter": "strainer_dp_bar", "label": "Suction strainer differential pressure check"}
+      ],
+      "recommended_actions": [
+        "Check suction strainer and inlet valve position",
+        "Verify tank level and NPSH margin"
+      ]
+    },
+    {
+      "id": "misalignment",
+      "name": "Shaft misalignment",
+      "description": "Pump and motor shafts are out of alignment tolerance.",
+      "supports": [
+        {"label": "Alignment offset out of tolerance", "weight": 3, "source_type": "inspection", "parameter": "alignment_offset_mm", "op": ">", "threshold": 0.1},
+        {"label": "Online vibration above alarm", "weight": 1, "source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1}
+      ],
+      "refutes": [
+        {"label": "Alignment within tolerance", "weight": 3, "source_type": "inspection", "parameter": "alignment_offset_mm", "op": "<=", "threshold": 0.05}
+      ],
+      "required_evidence": [
+        {"source_type": "inspection", "parameter": "alignment_offset_mm", "label": "Laser shaft alignment check"},
+        {"source_type": "sensor", "parameter": "vibration_mm_s", "label": "Online vibration trend"}
+      ],
+      "recommended_actions": [
+        "Perform laser shaft alignment",
+        "Check baseplate bolts and soft foot"
+      ]
+    }
+  ]
+}

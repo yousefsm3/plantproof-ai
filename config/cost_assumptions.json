@@ -1,0 +1,33 @@
+{
+  "_comment": "Illustrative synthetic cost assumptions in GBP. Not real plant data. Each value has low / base / high.",
+  "currency": "GBP",
+  "currency_symbol": "£",
+  "lost_margin_per_hour": {"low": 1200, "base": 1800, "high": 2600},
+  "labour_rate_per_hour": {"low": 45, "base": 55, "high": 70},
+  "profiles": {
+    "bearing_wear": {
+      "description": "Replace drive-end bearing, flush lubrication system",
+      "downtime_hours": {"low": 8, "base": 12, "high": 20},
+      "labour_hours": {"low": 10, "base": 14, "high": 24},
+      "parts": {"low": 1800, "base": 2600, "high": 4200}
+    },
+    "sensor_fault": {
+      "description": "Recalibrate or replace vibration transmitter",
+      "downtime_hours": {"low": 1, "base": 2, "high": 4},
+      "labour_hours": {"low": 2, "base": 3, "high": 5},
+      "parts": {"low": 350, "base": 600, "high": 900}
+    },
+    "cavitation": {
+      "description": "Clear suction strainer, correct inlet conditions",
+      "downtime_hours": {"low": 4, "base": 8, "high": 16},
+      "labour_hours": {"low": 6, "base": 10, "high": 18},
+      "parts": {"low": 400, "base": 1200, "high": 3500}
+    },
+    "misalignment": {
+      "description": "Laser realignment of pump and motor",
+      "downtime_hours": {"low": 4, "base": 6, "high": 10},
+      "labour_hours": {"low": 6, "base": 8, "high": 12},
+      "parts": {"low": 150, "base": 300, "high": 800}
+    }
+  }
+}

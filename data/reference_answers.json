@@ -1,0 +1,17 @@
+{
+  "_comment": "Blind Test reference answers for the synthetic scenarios. Only plantproof/blind_test.py reads this file; the evidence engine never does. NOTE: this repository is public, so anyone can read these answers. The separation demonstrates the method; it is not a secret.",
+  "scenarios": {
+    "A": {
+      "root_cause": "bearing_wear",
+      "expected_contradictions": ["A-OPS-0004", "A-INS-0002"],
+      "expected_missing": ["inspection:alignment_offset_mm", "inspection:strainer_dp_bar"],
+      "rationale": "Vibration and bearing temperature rise together, the handheld check confirms high vibration and the oil sample shows 86 ppm iron: classic bearing degradation. The 44 h operator log and the 46 h thermal round both report 'normal' while sensors were in alarm. Alignment and strainer checks were never done."
+    },
+    "B": {
+      "root_cause": "sensor_fault",
+      "expected_contradictions": ["B-OPS-0003", "B-INS-0001"],
+      "expected_missing": ["calibration:vib_sensor_cal", "inspection:alignment_offset_mm", "inspection:strainer_dp_bar"],
+      "rationale": "Online vibration jumps in a single step while bearing temperature stays flat, the handheld analyser reads 2.7 mm/s and oil iron is normal: the transmitter is reading falsely high. Its last calibration is more than two years old. The operator's 'normal' note conflicts with the alarm and the handheld reading disagrees with the online sensor."
+    }
+  }
+}

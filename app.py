@@ -181,13 +181,13 @@ def inject_theme() -> None:
 }}
 [data-testid="stHeader"] {{ background: transparent; }}
 [data-testid="stMetric"] {{
-  background: rgba(255,255,255,0.92); border: 1px solid #DCE5E3;
-  border-left: 4px solid {PETROL}; border-radius: 10px; padding: 10px 14px;
+  background: #EEF6F4; border: 1px solid #CFE3DE;
+  border-left: 5px solid {PETROL}; border-radius: 10px; padding: 10px 14px;
 }}
 /* ---- unified, readable content on top of the equipment background ---- */
 h1, h2, h3 {{ color: #0B2E2D !important; }}
 [data-testid="stHeading"] h3 {{
-  display: inline-block; background: rgba(255,255,255,0.94); padding: 4px 14px;
+  display: inline-block; background: #E3F1EE; padding: 4px 14px;
   border-radius: 8px; border-left: 4px solid {COPPER};
 }}
 [data-testid="stHeading"] h1 {{
@@ -204,13 +204,29 @@ button [data-testid="stMarkdownContainer"],
 [data-testid="stTooltipContent"] [data-testid="stMarkdownContainer"],
 label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0; }}
 [data-testid="stVerticalBlockBorderWrapper"] {{
-  background: #FFFFFF; border-radius: 12px; box-shadow: 0 2px 10px rgba(11,46,45,0.07);
+  background: #F1F7F6; border-radius: 12px; box-shadow: 0 2px 10px rgba(11,46,45,0.08);
 }}
-[class*="st-key-pp_contra"] {{ border-left: 6px solid {ALERT} !important; }}
-[class*="st-key-pp_miss"] {{ border-left: 6px solid {COPPER} !important; }}
+[class*="st-key-pp_contra"] {{ background: #FDEDEB !important; border: 1px solid #F3C4BD !important;
+  border-left: 6px solid {ALERT} !important; }}
+[class*="st-key-pp_miss"] {{ background: #FCF1E6 !important; border: 1px solid #EED3B8 !important;
+  border-left: 6px solid {COPPER} !important; }}
+.st-key-pp_kpi_records [data-testid="stMetric"] {{ background: #E6F2EF; border-left-color: {PETROL}; }}
+.st-key-pp_kpi_contra [data-testid="stMetric"] {{ background: #FDEDEB; border-color: #F3C4BD;
+  border-left-color: {ALERT}; }}
+.st-key-pp_kpi_miss [data-testid="stMetric"] {{ background: #FCF1E6; border-color: #EED3B8;
+  border-left-color: {COPPER}; }}
+.st-key-pp_kpi_lead [data-testid="stMetric"] {{ background: #DDEFE9; border-color: #B9DCD3;
+  border-left-color: #0B2E2D; }}
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"],
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCaptionContainer"],
+[data-testid="stExpander"] [data-testid="stMarkdownContainer"],
+[data-testid="stExpander"] [data-testid="stCaptionContainer"],
+[data-testid="stTabs"] [data-testid="stMarkdownContainer"],
+[data-testid="stForm"] [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0; }}
 [data-testid="stPlotlyChart"], [data-testid="stDataFrame"], [data-testid="stExpander"],
 [data-testid="stTabs"], [data-testid="stForm"] {{
-  background: #FFFFFF; border-radius: 12px; box-shadow: 0 2px 10px rgba(11,46,45,0.07);
+  background: #F6FAF9; border: 1px solid #D3E5E1; border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(11,46,45,0.07);
 }}
 [data-testid="stPlotlyChart"], [data-testid="stTabs"] {{ padding: 8px 10px; }}
 [data-testid="stMetricLabel"] {{ color: {PETROL}; font-weight: 600; }}
@@ -268,7 +284,7 @@ def confidence_chart(assessments) -> go.Figure:
         marker_color=[LABEL_COLORS[a.confidence_label] for a in items],
         text=[f"{a.confidence:.0%} · {a.confidence_label}" for a in items],
         textposition="auto", hovertemplate="%{y}: %{x:.0%}<extra></extra>"))
-    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", height=280, margin=dict(l=10, r=10, t=10, b=10),
+    fig.update_layout(paper_bgcolor="#F6FAF9", plot_bgcolor="#FFFFFF", height=280, margin=dict(l=10, r=10, t=10, b=10),
                       xaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")))
     return fig
 
@@ -293,7 +309,7 @@ def trend_chart(obs, param: str, ctx: Ctx, highlight: set[str]) -> go.Figure:
         fig.add_hline(y=limit.alarm, line_dash="dash", line_color=ALERT,
                       annotation_text=f"Alarm · حد الإنذار {limit.alarm:g}",
                       annotation_position="top left")
-    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", height=300, margin=dict(l=10, r=10, t=10, b=10), showlegend=bool(hot),
+    fig.update_layout(paper_bgcolor="#F6FAF9", plot_bgcolor="#FFFFFF", height=300, margin=dict(l=10, r=10, t=10, b=10), showlegend=bool(hot),
                       legend=dict(orientation="h", y=-0.2), yaxis_title=label)
     return fig
 
@@ -306,7 +322,7 @@ def comparison_chart(rows) -> go.Figure:
         go.Bar(name=bi_plain("What If"), x=names, y=[r["scenario_confidence"] for r in rows],
                marker_color=PETROL),
     ])
-    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", barmode="group", height=340, margin=dict(l=10, r=10, t=10, b=10),
+    fig.update_layout(paper_bgcolor="#F6FAF9", plot_bgcolor="#FFFFFF", barmode="group", height=340, margin=dict(l=10, r=10, t=10, b=10),
                       yaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")),
                       legend=dict(orientation="h", y=1.1))
     return fig
@@ -320,7 +336,7 @@ def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
                marker_color=colors[i % len(colors)])
         for i, line in enumerate(est.lines)
     ])
-    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", barmode="stack", height=320, margin=dict(l=10, r=10, t=10, b=10),
+    fig.update_layout(paper_bgcolor="#F6FAF9", plot_bgcolor="#FFFFFF", barmode="stack", height=320, margin=dict(l=10, r=10, t=10, b=10),
                       yaxis_title=f"Cost · التكلفة ({est.currency_symbol})",
                       legend=dict(orientation="h", y=1.1))
     return fig
@@ -336,15 +352,19 @@ def page_overview(ctx: Ctx) -> None:
             "الخط 3. حدّد السبب قبل إعادة التشغيل.]]")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric(bi("Records analysed"), r.record_count)
-    c2.metric(bi("Contradictions"), len(r.contradictions),
-              help=with_ar("Records that conflict with each other. Resolve before restart."))
-    c3.metric(bi("Missing evidence"), len(r.missing),
-              help=with_ar("Evidence a hypothesis needs that is absent or out of date."))
+    with c1.container(key="pp_kpi_records"):
+        st.metric(bi("Records analysed"), r.record_count)
+    with c2.container(key="pp_kpi_contra"):
+        st.metric(bi("Contradictions"), len(r.contradictions),
+                  help=with_ar("Records that conflict with each other. Resolve before restart."))
+    with c3.container(key="pp_kpi_miss"):
+        st.metric(bi("Missing evidence"), len(r.missing),
+                  help=with_ar("Evidence a hypothesis needs that is absent or out of date."))
     if top:
-        c4.metric(bi("Leading hypothesis"), top.name,
-                  f"{pct(top.confidence)} · {top.confidence_label} · {ar(top.name)}",
-                  delta_color="off")
+        with c4.container(key="pp_kpi_lead"):
+            st.metric(bi("Leading hypothesis"), top.name,
+                      f"{pct(top.confidence)} · {top.confidence_label} · {ar(top.name)}",
+                      delta_color="off")
 
     if top:
         t = cost_model.estimate(top.hypothesis_id, ctx.costs).totals

@@ -137,7 +137,10 @@ def _checks_answer(observations, config, analysis) -> AdvisorAnswer:
     items = []
     for i, c in enumerate(checks, start=1):
         o = max(c["outcomes"], key=lambda x: x["impact"])
-        if o["flip"]:
+        if o["impact"] == 0:
+            eff_en = "no tested result would change the current conclusion (lower priority)."
+            eff_ar = "لا توجد نتيجة مختبَرة تغيّر الاستنتاج الحالي (أولوية أقل)."
+        elif o["flip"]:
             eff_en = (f"{o['label_en']}, the leading hypothesis would change to "
                       f"{o['new_leader']} ({o['new_confidence']:.0%}).")
             eff_ar = (f"{o['label_ar']}، ستتغير الفرضية الأقوى إلى "
@@ -294,7 +297,9 @@ def detect_intent(question: str) -> str | None:
     if not q:
         return None
     scores = {k: sum(1 for w in words if w in q) for k, words in INTENTS.items()}
-    best = max(scores, key=scores.get)
+    # On a tie prefer the broader answer: a plan already includes the checks.
+    order = ("plan", "restart", "explain", "checks")
+    best = max(order, key=lambda k: (scores[k], -order.index(k)))
     return best if scores[best] > 0 else None
 
 

@@ -10,6 +10,7 @@ UI labels show English followed by a light-grey Arabic gloss
 from __future__ import annotations
 
 import base64
+import html
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -245,6 +246,10 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
   font-size: 1.55rem; line-height: 1.25; color: #0B2E2D;
 }}
 .pp-ar {{ font-size: .78em; opacity: .6; font-weight: 400; margin-inline-start: .45em; }}
+.pp-rtl {{ direction: rtl; text-align: right; unicode-bidi: isolate; color: #6B7B7A;
+  font-size: .86rem; line-height: 1.6; margin: -6px 0 8px 0; }}
+.pp-rtl-title {{ font-size: .95rem; font-weight: 600; margin-top: -10px; }}
+.pp-rtl-note {{ font-size: .78rem; }}
 .pp-name {{ font-size: 1.25rem; font-weight: 700; color: #0B2E2D; letter-spacing: .2px; }}
 .pp-name span {{ color: {COPPER}; }}
 </style>
@@ -496,15 +501,24 @@ STATUS_ICON = {"pass": ":green[:material/check_circle:]", "fail": ":red[:materia
                "info": ":gray[:material/arrow_right:]"}
 
 
+def rtl(text: str, cls: str = "pp-rtl") -> None:
+    """Arabic line rendered right-to-left so mixed IDs and numbers keep their order."""
+    st.markdown(f'<div dir="rtl" class="{cls}">{html.escape(text)}</div>',
+                unsafe_allow_html=True)
+
+
 def _render_answer(ans: advisor.AdvisorAnswer) -> None:
-    st.markdown(f"**{ans.title_en}**  \n{gray(ans.title_ar)}")
+    st.markdown(f"**{ans.title_en}**")
+    rtl(ans.title_ar, "pp-rtl pp-rtl-title")
     for item in ans.items:
         icon = STATUS_ICON.get(item.status or "info", "")
-        st.markdown(f"{icon} {item.en}  \n{gray(item.ar)}")
+        st.markdown(f"{icon} {item.en}")
+        rtl(item.ar)
         if item.record_ids:
             st.caption(f"{bi('Source records')}: {ids_text(item.record_ids, 8)}")
     if ans.note_en:
-        st.caption(f"{ans.note_en}  \n{gray(ans.note_ar)}")
+        st.caption(ans.note_en)
+        rtl(ans.note_ar, "pp-rtl pp-rtl-note")
 
 
 def page_advisor(ctx: Ctx) -> None:

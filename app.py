@@ -184,6 +184,40 @@ def inject_theme() -> None:
   background: rgba(255,255,255,0.92); border: 1px solid #DCE5E3;
   border-left: 4px solid {PETROL}; border-radius: 10px; padding: 10px 14px;
 }}
+/* ---- unified, readable content on top of the equipment background ---- */
+h1, h2, h3 {{ color: #0B2E2D !important; }}
+[data-testid="stHeading"] h3 {{
+  display: inline-block; background: rgba(255,255,255,0.94); padding: 4px 14px;
+  border-radius: 8px; border-left: 4px solid {COPPER};
+}}
+[data-testid="stHeading"] h1 {{
+  display: inline-block; background: rgba(255,255,255,0.9); padding: 2px 14px; border-radius: 10px;
+}}
+[data-testid="stMarkdownContainer"], [data-testid="stCaptionContainer"] {{
+  background: rgba(255,255,255,0.9); border-radius: 8px; padding: 2px 8px;
+}}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+button [data-testid="stMarkdownContainer"],
+[data-testid="stAlert"] [data-testid="stMarkdownContainer"],
+[data-testid="stMetric"] [data-testid="stMarkdownContainer"],
+[data-testid="stTooltipContent"] [data-testid="stMarkdownContainer"],
+label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0; }}
+[data-testid="stVerticalBlockBorderWrapper"] {{
+  background: #FFFFFF; border-radius: 12px; box-shadow: 0 2px 10px rgba(11,46,45,0.07);
+}}
+[class*="st-key-pp_contra"] {{ border-left: 6px solid {ALERT} !important; }}
+[class*="st-key-pp_miss"] {{ border-left: 6px solid {COPPER} !important; }}
+[data-testid="stPlotlyChart"], [data-testid="stDataFrame"], [data-testid="stExpander"],
+[data-testid="stTabs"], [data-testid="stForm"] {{
+  background: #FFFFFF; border-radius: 12px; box-shadow: 0 2px 10px rgba(11,46,45,0.07);
+}}
+[data-testid="stPlotlyChart"], [data-testid="stTabs"] {{ padding: 8px 10px; }}
+[data-testid="stMetricLabel"] {{ color: {PETROL}; font-weight: 600; }}
+[data-testid="stMetricValue"], [data-testid="stMetricValue"] > div {{
+  white-space: normal !important; overflow: visible !important; text-overflow: clip !important;
+  font-size: 1.55rem; line-height: 1.25; color: #0B2E2D;
+}}
 .pp-hero {{
   display: flex; align-items: center; gap: 16px; padding: 18px 22px; margin: -8px 0 18px 0;
   border-radius: 14px; color: #FFFFFF;
@@ -234,7 +268,7 @@ def confidence_chart(assessments) -> go.Figure:
         marker_color=[LABEL_COLORS[a.confidence_label] for a in items],
         text=[f"{a.confidence:.0%} · {a.confidence_label}" for a in items],
         textposition="auto", hovertemplate="%{y}: %{x:.0%}<extra></extra>"))
-    fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10),
+    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", height=280, margin=dict(l=10, r=10, t=10, b=10),
                       xaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")))
     return fig
 
@@ -259,7 +293,7 @@ def trend_chart(obs, param: str, ctx: Ctx, highlight: set[str]) -> go.Figure:
         fig.add_hline(y=limit.alarm, line_dash="dash", line_color=ALERT,
                       annotation_text=f"Alarm · حد الإنذار {limit.alarm:g}",
                       annotation_position="top left")
-    fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10), showlegend=bool(hot),
+    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", height=300, margin=dict(l=10, r=10, t=10, b=10), showlegend=bool(hot),
                       legend=dict(orientation="h", y=-0.2), yaxis_title=label)
     return fig
 
@@ -272,7 +306,7 @@ def comparison_chart(rows) -> go.Figure:
         go.Bar(name=bi_plain("What If"), x=names, y=[r["scenario_confidence"] for r in rows],
                marker_color=PETROL),
     ])
-    fig.update_layout(barmode="group", height=340, margin=dict(l=10, r=10, t=10, b=10),
+    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", barmode="group", height=340, margin=dict(l=10, r=10, t=10, b=10),
                       yaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")),
                       legend=dict(orientation="h", y=1.1))
     return fig
@@ -286,7 +320,7 @@ def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
                marker_color=colors[i % len(colors)])
         for i, line in enumerate(est.lines)
     ])
-    fig.update_layout(barmode="stack", height=320, margin=dict(l=10, r=10, t=10, b=10),
+    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", barmode="stack", height=320, margin=dict(l=10, r=10, t=10, b=10),
                       yaxis_title=f"Cost · التكلفة ({est.currency_symbol})",
                       legend=dict(orientation="h", y=1.1))
     return fig
@@ -339,14 +373,14 @@ def page_overview(ctx: Ctx) -> None:
         if not r.contradictions:
             st.success(with_ar("No contradictions detected."))
         for f in r.contradictions:
-            with st.container(border=True):
+            with st.container(border=True, key=f"pp_contra_ov_{f.finding_id}"):
                 show_finding(f)
     with b:
         st.subheader(f"🧩 {bi('Missing evidence')}")
         if not r.missing:
             st.success(with_ar("All required evidence is present."))
         for f in r.missing:
-            with st.container(border=True):
+            with st.container(border=True, key=f"pp_miss_ov_{f.finding_id}"):
                 hyps = ", ".join(ctx.cfg.hypothesis(h).name for h in f.hypothesis_ids)
                 hyps_ar = "، ".join(ar(ctx.cfg.hypothesis(h).name) for h in f.hypothesis_ids)
                 st.markdown(f"**{f.finding_id} · {f.title}** {gray(ar(f.title))}  \n{f.detail}")
@@ -414,7 +448,7 @@ Rules, weights and thresholds live in `config/hypotheses.json`.
     if not r.contradictions:
         st.success(with_ar("No contradictions detected."))
     for f in r.contradictions:
-        with st.container(border=True):
+        with st.container(border=True, key=f"pp_contra_ev_{f.finding_id}"):
             show_finding(f)
 
     st.subheader(bi("Trace a record"))

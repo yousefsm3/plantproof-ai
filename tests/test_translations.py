@@ -11,7 +11,7 @@ APP = Path(__file__).resolve().parent.parent / "app.py"
 
 class TranslationTests(unittest.TestCase):
     def test_helpers(self):
-        self.assertEqual(bi("Overview"), "Overview :gray[نظرة عامة]")
+        self.assertEqual(bi("Overview"), "Overview :small[:gray[نظرة عامة]]")
         self.assertEqual(bi_plain("Bearing wear"), "Bearing wear · تآكل المحمل")
         self.assertEqual(bi("no such text"), "no such text")
 

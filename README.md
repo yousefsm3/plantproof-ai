@@ -10,6 +10,9 @@ API and no API keys.
 Every label in the dashboard shows a light-grey Arabic gloss next to the English text
 (`plantproof/translations.py`). Engine-generated detail sentences stay in English.
 
+The visual identity (logo, colours, equipment line art) is original to this project. PlantProof AI
+is a concept prototype for the energy sector and is not affiliated with or endorsed by any company.
+
 > **Synthetic data only.** Every record in this repository is fictional. This repository is
 > public: it contains no credentials, API keys, passwords, personal data or secrets, and must
 > never contain any.
@@ -60,6 +63,7 @@ plantproof/
   handover.py               shift handover summaries
   storage.py                SQLite storage, history export/import
 config/                     hypotheses.json, cost_assumptions.json
+assets/                     original logo and equipment line art (SVG)
 data/                       synthetic scenarios + reference answers
 tests/                      unit tests + fake-Streamlit smoke test
 .streamlit/config.toml      theme

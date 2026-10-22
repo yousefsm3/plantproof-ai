@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-label="Line drawing of process plant equipment">
+  <!-- Original line art (PlantProof AI): column, tank, flare, pipe rack, pump set, valve, gauge, exchanger.
+       Drawn very faint on purpose: used as a subtle background watermark. -->
+  <g fill="none" stroke="#0B2545" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.09">
+    <!-- ground -->
+    <line x1="20" y1="545" x2="1180" y2="545"/>
+
+    <!-- distillation column with trays, platforms and ladder -->
+    <path d="M80 545 V150 A35 35 0 0 1 150 150 V545"/>
+    <line x1="80" y1="200" x2="150" y2="200"/><line x1="80" y1="250" x2="150" y2="250"/>
+    <line x1="80" y1="300" x2="150" y2="300"/><line x1="80" y1="350" x2="150" y2="350"/>
+    <line x1="80" y1="400" x2="150" y2="400"/><line x1="80" y1="450" x2="150" y2="450"/>
+    <path d="M150 230 H178 M150 380 H178 M178 210 V560"/>
+    <path d="M58 150 V545 M70 150 V545"/>
+    <line x1="58" y1="180" x2="70" y2="180"/><line x1="58" y1="220" x2="70" y2="220"/>
+    <line x1="58" y1="260" x2="70" y2="260"/><line x1="58" y1="300" x2="70" y2="300"/>
+    <line x1="58" y1="340" x2="70" y2="340"/><line x1="58" y1="380" x2="70" y2="380"/>
+    <line x1="115" y1="115" x2="115" y2="85"/><path d="M115 85 H260 V300"/>
+
+    <!-- storage tank with roof and stairs -->
+    <path d="M210 545 V400 H390 V545"/>
+    <path d="M210 400 Q300 360 390 400"/>
+    <line x1="210" y1="440" x2="390" y2="440"/><line x1="210" y1="490" x2="390" y2="490"/>
+    <path d="M390 545 L430 400 M400 545 L440 400"/>
+
+    <!-- flare stack with flame -->
+    <path d="M480 545 V90 M494 545 V90 M474 90 H500"/>
+    <path d="M480 470 L494 430 M494 470 L480 430 M480 330 L494 290 M494 330 L480 290 M480 190 L494 150 M494 190 L480 150"/>
+    <path d="M487 88 C470 70 482 55 487 40 C492 55 506 66 487 88 Z"/>
+
+    <!-- pipe rack -->
+    <path d="M150 300 H1170 M150 316 H1170"/>
+    <path d="M260 300 V545 M560 300 V545 M860 300 V545 M1110 300 V545"/>
+    <path d="M250 330 H270 M550 330 H570 M850 330 H870 M1100 330 H1120"/>
+
+    <!-- centrifugal pump: baseplate, volute, impeller, coupling, motor -->
+    <rect x="630" y="505" width="330" height="18" rx="3"/>
+    <circle cx="720" cy="455" r="48"/>
+    <circle cx="720" cy="455" r="10"/>
+    <path d="M720 445 C735 430 748 432 758 440 M730 455 C745 470 744 482 736 492 M720 465 C705 480 692 478 682 470 M710 455 C695 440 696 428 704 418"/>
+    <path d="M700 505 L705 497 M740 505 L735 497"/>
+    <path d="M768 445 H800 V465 H768"/>
+    <rect x="800" y="438" width="22" height="34" rx="3"/>
+    <rect x="822" y="425" width="128" height="60" rx="10"/>
+    <path d="M840 425 V485 M860 425 V485 M880 425 V485 M900 425 V485 M920 425 V485"/>
+    <path d="M840 505 V485 M930 505 V485"/>
+    <!-- suction and discharge piping -->
+    <path d="M672 455 H600 V316"/>
+    <path d="M720 407 V360 H700"/>
+
+    <!-- gate valve with handwheel on discharge -->
+    <path d="M700 360 H660"/>
+    <path d="M660 345 L630 375 L630 345 L660 375 Z"/>
+    <path d="M645 360 V325"/>
+    <ellipse cx="645" cy="320" rx="22" ry="6"/>
+    <path d="M630 360 H615 V316"/>
+
+    <!-- pressure gauge -->
+    <path d="M760 407 V385"/>
+    <circle cx="760" cy="365" r="20"/>
+    <path d="M760 365 L772 354"/>
+    <path d="M746 372 A16 16 0 0 1 774 372"/>
+
+    <!-- shell-and-tube heat exchanger on saddles -->
+    <path d="M995 420 H1145 A30 30 0 0 1 1145 480 H995 A30 30 0 0 1 995 420 Z"/>
+    <line x1="1000" y1="420" x2="1000" y2="480"/><line x1="1140" y1="420" x2="1140" y2="480"/>
+    <path d="M1015 480 L1005 545 M1035 480 L1045 545 M1105 480 L1095 545 M1125 480 L1135 545"/>
+    <path d="M1030 420 V316 M1110 420 V390 H1170"/>
+  </g>
+</svg>

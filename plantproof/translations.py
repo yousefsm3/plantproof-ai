@@ -1,6 +1,6 @@
 """Arabic glosses for the dashboard (UI text only).
 
-bi(text)       -> "text :gray[ترجمة]"  Streamlit markdown: English, then light-grey Arabic
+bi(text)       -> "text :small[:gray[ترجمة]]"  Streamlit markdown: English, then light-grey Arabic
 bi_plain(text) -> "text · ترجمة"        for places that cannot show colour (dropdowns, tables, charts)
 
 Text without a translation is returned unchanged, so a missing entry never breaks the app.
@@ -292,7 +292,7 @@ def ar(text: str) -> str:
 def bi(text: str) -> str:
     """Streamlit markdown: English followed by light-grey Arabic."""
     gloss = ar(text)
-    return f"{text} :gray[{gloss}]" if gloss else text
+    return f"{text} :small[:gray[{gloss}]]" if gloss else text
 
 
 def bi_plain(text: str) -> str:

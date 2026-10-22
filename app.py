@@ -9,8 +9,10 @@ UI labels show English followed by a light-grey Arabic gloss
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -35,18 +37,23 @@ PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing
 SOURCE_AR = {"sensor": "حساس", "operator_log": "سجل مشغّل", "inspection": "فحص",
              "lab": "مختبر", "calibration": "معايرة", "maintenance": "صيانة", "event": "حدث"}
 CASE_AR = {"low": "منخفض", "base": "أساسي", "high": "مرتفع"}
-LABEL_COLORS = {"High": "#0F766E", "Medium": "#D97706", "Low": "#94A3B8"}
+LABEL_COLORS = {"High": "#13315C", "Medium": "#E8A33D", "Low": "#B8C4D3"}
+NAVY, STEEL, AMBER, ALERT = "#13315C", "#8DA9C4", "#E8A33D", "#C2410C"
+ASSETS = Path(__file__).resolve().parent / "assets"
+DISCLAIMER = ("Concept prototype for the energy sector. Not affiliated with or endorsed by "
+              "any company.")
+DISCLAIMER_AR = "نموذج أولي لقطاع الطاقة، غير تابع لأي شركة ولا معتمد منها."
 PERSISTENCE_SHORT = ("Saved history may be lost when the app restarts or redeploys. "
                      "Export it from the History page to keep a copy.")
 PERSISTENCE_FULL = (
-    "**Storage notice** :gray[تنبيه التخزين]  \n"
+    "**Storage notice** :small[:gray[تنبيه التخزين]]  \n"
     "History is stored in a local SQLite file. On Streamlit Community Cloud, local files are "
     "**not guaranteed to persist**: they can be wiped when the app restarts, reboots, "
     "redeploys or wakes from sleep. Demo data is rebuilt automatically, but saved "
     "investigations, What If runs, Blind Test results and handovers are lost unless you "
     "**export** them below and **import** them again later.  \n"
-    ":gray[قد يُحذف السجل عند إعادة تشغيل التطبيق أو تحديثه أو استيقاظه من السكون. "
-    "نزّله من هنا واستورده لاحقًا.]"
+    ":small[:gray[قد يُحذف السجل عند إعادة تشغيل التطبيق أو تحديثه أو استيقاظه من السكون. "
+    "نزّله من هنا واستورده لاحقًا.]]"
 )
 HANDOVER_HEADINGS = ("Status", "Leading hypothesis", "Contradictions to resolve",
                      "Missing evidence", "Actions for incoming shift",
@@ -97,13 +104,13 @@ def money(x: float, ctx: Ctx) -> str:
 
 def gray(text: str) -> str:
     """Light-grey Arabic line for st.markdown / st.caption."""
-    return f":gray[{text}]" if text else ""
+    return f":small[:gray[{text}]]" if text else ""
 
 
 def with_ar(text: str) -> str:
     """English sentence followed by its Arabic gloss on a new line (markdown)."""
     gloss = ar(text)
-    return f"{text}  \n:gray[{gloss}]" if gloss else text
+    return f"{text}  \n:small[:gray[{gloss}]]" if gloss else text
 
 
 def source_plain(s: str) -> str:
@@ -146,6 +153,79 @@ def page_header(icon: str, title: str, caption: str = "") -> None:
         st.caption(with_ar(caption))
 
 
+# ------------------------------------------------------------------------ branding
+@st.cache_resource(show_spinner=False)
+def svg_data_uri(name: str, recolor: tuple[str, str] | None = None,
+                 opacity: tuple[str, str] | None = None) -> str:
+    """Read an SVG from assets/ (original artwork) and return it as a data URI."""
+    svg = (ASSETS / name).read_text(encoding="utf-8")
+    if recolor:
+        svg = svg.replace(*recolor)
+    if opacity:
+        svg = svg.replace(*opacity)
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode("ascii")
+
+
+def inject_theme() -> None:
+    """Industrial look: faint equipment drawing behind the app, card-style metrics."""
+    bg = svg_data_uri("equipment.svg")
+    st.markdown(f"""
+<style>
+[data-testid="stAppViewContainer"] {{
+  background-color: #F5F7FA;
+  background-image: url("{bg}");
+  background-repeat: no-repeat;
+  background-position: right -40px bottom -20px;
+  background-size: min(1100px, 95vw) auto;
+  background-attachment: fixed;
+}}
+[data-testid="stHeader"] {{ background: transparent; }}
+[data-testid="stMetric"] {{
+  background: rgba(255,255,255,0.92); border: 1px solid #E1E7EF;
+  border-left: 4px solid {NAVY}; border-radius: 10px; padding: 10px 14px;
+}}
+.pp-hero {{
+  display: flex; align-items: center; gap: 16px; padding: 18px 22px; margin: -8px 0 18px 0;
+  border-radius: 14px; color: #FFFFFF;
+  background-color: #0B2545;
+  background-image: url("{svg_data_uri('equipment.svg', ('#0B2545', '#FFFFFF'), ('stroke-opacity="0.09"', 'stroke-opacity="0.22"'))}"),
+                    linear-gradient(120deg, #0B2545 0%, #13315C 55%, #1F4A7A 100%);
+  background-repeat: no-repeat; background-position: right center; background-size: auto 140%, cover;
+  box-shadow: 0 6px 18px rgba(11,37,69,0.18);
+}}
+.pp-hero img {{ width: 52px; height: 52px; flex: none; }}
+.pp-hero .pp-title {{ font-size: 1.45rem; font-weight: 700; letter-spacing: .3px; line-height: 1.2; }}
+.pp-hero .pp-sub {{ font-size: .9rem; opacity: .85; margin-top: 2px; }}
+.pp-hero .pp-accent {{ color: {AMBER}; }}
+.pp-ar {{ font-size: .78em; opacity: .6; font-weight: 400; margin-inline-start: .45em; }}
+.pp-side {{ display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }}
+.pp-side img {{ width: 38px; height: 38px; }}
+.pp-side b {{ font-size: 1.15rem; color: #0B2545; }}
+</style>
+""", unsafe_allow_html=True)
+
+
+def brand_header(page: str) -> None:
+    logo = svg_data_uri("logo.svg")
+    st.markdown(f"""
+<div class="pp-hero">
+  <img src="{logo}" alt="PlantProof AI logo">
+  <div>
+    <div class="pp-title">PlantProof <span class="pp-accent">AI</span>
+      <span class="pp-ar">بلانت بروف</span></div>
+    <div class="pp-sub">Industrial incident intelligence · {page}
+      <span class="pp-ar">ذكاء أعطال المعدات الصناعية · {ar(page)}</span></div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+def sidebar_brand() -> None:
+    logo = svg_data_uri("logo.svg")
+    st.sidebar.markdown(f'<div class="pp-side"><img src="{logo}" alt="logo">'
+                        f'<b>PlantProof AI</b></div>', unsafe_allow_html=True)
+
+
 # -------------------------------------------------------------------------- charts
 def confidence_chart(assessments) -> go.Figure:
     items = list(reversed(assessments))
@@ -164,19 +244,19 @@ def trend_chart(obs, param: str, ctx: Ctx, highlight: set[str]) -> go.Figure:
     label = bi_plain(PARAM_LABELS.get(param, param))
     fig = go.Figure(go.Scatter(
         x=[o.timestamp for o in series], y=[o.value for o in series], mode="lines+markers",
-        name=label, line=dict(color="#0F766E", width=2),
+        name=label, line=dict(color=NAVY, width=2),
         marker=dict(size=4), customdata=[o.record_id for o in series],
         hovertemplate="%{customdata}<br>%{x}<br>%{y}<extra></extra>"))
     hot = [o for o in series if o.record_id in highlight]
     if hot:
         fig.add_trace(go.Scatter(
             x=[o.timestamp for o in hot], y=[o.value for o in hot], mode="markers",
-            name=bi_plain("Linked to a contradiction"), marker=dict(color="#DC2626", size=9),
+            name=bi_plain("Linked to a contradiction"), marker=dict(color=ALERT, size=9),
             customdata=[o.record_id for o in hot],
             hovertemplate="%{customdata}<br>%{y}<extra></extra>"))
     limit = ctx.cfg.limits.get(param)
     if limit:
-        fig.add_hline(y=limit.alarm, line_dash="dash", line_color="#DC2626",
+        fig.add_hline(y=limit.alarm, line_dash="dash", line_color=ALERT,
                       annotation_text=f"Alarm · حد الإنذار {limit.alarm:g}",
                       annotation_position="top left")
     fig.update_layout(height=300, margin=dict(l=10, r=10, t=10, b=10), showlegend=bool(hot),
@@ -188,9 +268,9 @@ def comparison_chart(rows) -> go.Figure:
     names = [bi_plain(r["hypothesis"]) for r in rows]
     fig = go.Figure([
         go.Bar(name=bi_plain("Baseline"), x=names, y=[r["baseline_confidence"] for r in rows],
-               marker_color="#94A3B8"),
+               marker_color="#B8C4D3"),
         go.Bar(name=bi_plain("What If"), x=names, y=[r["scenario_confidence"] for r in rows],
-               marker_color="#0F766E"),
+               marker_color=NAVY),
     ])
     fig.update_layout(barmode="group", height=340, margin=dict(l=10, r=10, t=10, b=10),
                       yaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")),
@@ -200,7 +280,7 @@ def comparison_chart(rows) -> go.Figure:
 
 def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
     cases = [f"{c.title()} · {CASE_AR[c]}" for c in cost_model.CASES]
-    colors = ["#0F766E", "#5EAAA8", "#D97706"]
+    colors = [NAVY, STEEL, AMBER]
     fig = go.Figure([
         go.Bar(name=bi_plain(line.component), x=cases, y=[line.low, line.base, line.high],
                marker_color=colors[i % len(colors)])
@@ -218,8 +298,8 @@ def page_overview(ctx: Ctx) -> None:
     st.title(f"🏭 {bi(ctx.meta['asset_name'])}")
     st.caption(f"{bi(ctx.meta['title'])} · {bi('analysis window')} "
                f"{r.window_start.replace('T', ' ')} → {r.window_end.replace('T', ' ')}")
-    st.info(ctx.meta["summary"] + "  \n:gray[توقفت المضخة P-301 بسبب إنذار اهتزاز عالٍ وتوقف "
-            "الخط 3. حدّد السبب قبل إعادة التشغيل.]")
+    st.info(ctx.meta["summary"] + "  \n:small[:gray[توقفت المضخة P-301 بسبب إنذار اهتزاز عالٍ وتوقف "
+            "الخط 3. حدّد السبب قبل إعادة التشغيل.]]")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(bi("Records analysed"), r.record_count)
@@ -292,15 +372,15 @@ def page_evidence(ctx: Ctx) -> None:
         cfg = ctx.cfg
         st.markdown(
             f"""
-- **Support ratio** :gray[نسبة الدعم] = max(0, matched supporting weight − matched refuting weight) ÷ total supporting weight
-- **Coverage** :gray[التغطية] = required evidence present ÷ required evidence total
-- **Coverage factor** :gray[معامل التغطية] = {cfg.coverage_floor:g} + {1 - cfg.coverage_floor:g} × coverage
-- **Contested factor** :gray[معامل التعارض] = max({cfg.min_contested_factor:g}, {cfg.contested_penalty:g} ^ number of contradictions touching supporting records)
-- **Confidence** :gray[الثقة] = support ratio × coverage factor × contested factor
-- Levels :gray[المستويات]: High :gray[عالية] ≥ {pct(cfg.high_threshold)}, Medium :gray[متوسطة] ≥ {pct(cfg.medium_threshold)}, otherwise Low :gray[منخفضة].
+- **Support ratio** :small[:gray[نسبة الدعم]] = max(0, matched supporting weight − matched refuting weight) ÷ total supporting weight
+- **Coverage** :small[:gray[التغطية]] = required evidence present ÷ required evidence total
+- **Coverage factor** :small[:gray[معامل التغطية]] = {cfg.coverage_floor:g} + {1 - cfg.coverage_floor:g} × coverage
+- **Contested factor** :small[:gray[معامل التعارض]] = max({cfg.min_contested_factor:g}, {cfg.contested_penalty:g} ^ number of contradictions touching supporting records)
+- **Confidence** :small[:gray[الثقة]] = support ratio × coverage factor × contested factor
+- Levels :small[:gray[المستويات]]: High :small[:gray[عالية]] ≥ {pct(cfg.high_threshold)}, Medium :small[:gray[متوسطة]] ≥ {pct(cfg.medium_threshold)}, otherwise Low :small[:gray[منخفضة]].
 
 Rules, weights and thresholds live in `config/hypotheses.json`.
-:gray[القواعد والأوزان والحدود موجودة في ملف الإعدادات config/hypotheses.json.]
+:small[:gray[القواعد والأوزان والحدود موجودة في ملف الإعدادات config/hypotheses.json.]]
 """)
 
     for a in r.assessments:
@@ -598,7 +678,7 @@ def page_cost(ctx: Ctx) -> None:
             st.markdown(f"**{bi(label)}**")
             cols = st.columns(3)
             overrides[key] = {
-                case: cols[i].number_input(f"{case.title()} :gray[{CASE_AR[case]}]",
+                case: cols[i].number_input(f"{case.title()} :small[:gray[{CASE_AR[case]}]]",
                                            min_value=0.0, value=float(rng[case]),
                                            key=f"cost_{hid}_{key}_{case}")
                 for i, case in enumerate(cost_model.CASES)
@@ -613,9 +693,9 @@ def page_cost(ctx: Ctx) -> None:
     t = est.totals
     st.markdown(f"**{bi('Repair scope')}:** {est.description}")
     c1, c2, c3 = st.columns(3)
-    c1.metric(f"Low :gray[{CASE_AR['low']}]", money(t["low"], ctx))
-    c2.metric(f"Base :gray[{CASE_AR['base']}]", money(t["base"], ctx))
-    c3.metric(f"High :gray[{CASE_AR['high']}]", money(t["high"], ctx))
+    c1.metric(f"Low :small[:gray[{CASE_AR['low']}]]", money(t["low"], ctx))
+    c2.metric(f"Base :small[:gray[{CASE_AR['base']}]]", money(t["base"], ctx))
+    c3.metric(f"High :small[:gray[{CASE_AR['high']}]]", money(t["high"], ctx))
 
     left, right = st.columns([3, 2])
     with left:
@@ -665,7 +745,7 @@ def page_history(ctx: Ctx) -> None:
                            mime="application/json", key="hist_export")
     with e2:
         st.markdown(f"**{bi('Import history')}**")
-        upload = st.file_uploader("PlantProof history JSON :gray[ملف السجل]", type=["json"],
+        upload = st.file_uploader("PlantProof history JSON :small[:gray[ملف السجل]]", type=["json"],
                                   key="hist_upload")
         if upload is not None and st.button(bi("Import file"), key="hist_import"):
             try:
@@ -696,9 +776,9 @@ def page_history(ctx: Ctx) -> None:
                     elif kind == "whatif":
                         st.markdown(f"**{bi('Changes')}:** "
                                     f"{'; '.join(p.get('change_descriptions', []))}  \n"
-                                    f"**Result :gray[النتيجة]:** {p.get('summary')}")
+                                    f"**Result :small[:gray[النتيجة]]:** {p.get('summary')}")
                     elif kind == "blind_test":
-                        st.markdown(f"**Score :gray[النتيجة]:** {p.get('total')} / 100 "
+                        st.markdown(f"**Score :small[:gray[النتيجة]]:** {p.get('total')} / 100 "
                                     f"({p.get('grade')})")
                     elif kind == "handover":
                         st.markdown(p.get("markdown", ""))
@@ -724,7 +804,7 @@ def page_history(ctx: Ctx) -> None:
 def _bilingual_report(md: str) -> str:
     """Add grey Arabic to the report's section headings (on-screen preview only)."""
     for h in HANDOVER_HEADINGS:
-        md = md.replace(f"\n## {h}\n", f"\n## {h} :gray[{ar(h)}]\n")
+        md = md.replace(f"\n## {h}\n", f"\n## {h} :small[:gray[{ar(h)}]]\n")
     return md
 
 
@@ -788,7 +868,8 @@ def main() -> None:
         st.stop()
         return
 
-    st.sidebar.title("🏭 PlantProof AI")
+    inject_theme()
+    sidebar_brand()
     st.sidebar.caption(with_ar("Evidence-first investigations for plant incidents"))
     page = st.sidebar.radio(bi("Navigate"), PAGES, key="page",
                             format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
@@ -800,6 +881,7 @@ def main() -> None:
     st.sidebar.caption(f"v{__version__} · "
                        + with_ar("Synthetic demo data only · Rule-based analysis, "
                                  "no external AI or API keys."))
+    st.sidebar.caption(f"{DISCLAIMER}  \n{gray(DISCLAIMER_AR)}")
 
     meta = next(s for s in index if s["id"] == sid)
     obs = store.observations(sid)
@@ -807,6 +889,7 @@ def main() -> None:
         store.reset_observations()
         obs = store.observations(sid)
     ctx = Ctx(store, cfg, costs, meta, sid, obs, analyse(obs, cfg, sid))
+    brand_header(page)
 
     {"Overview": page_overview, "Evidence": page_evidence, "What If": page_whatif,
      "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,

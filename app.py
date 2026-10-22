@@ -240,46 +240,21 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
   white-space: normal !important; overflow: visible !important; text-overflow: clip !important;
   font-size: 1.55rem; line-height: 1.25; color: #0B2E2D;
 }}
-.pp-hero {{
-  display: flex; align-items: center; gap: 16px; padding: 18px 22px; margin: -8px 0 18px 0;
-  border-radius: 14px; color: #FFFFFF;
-  background-color: #0B2E2D;
-  background-image: url("{svg_data_uri('equipment.svg', ('#0B2E2D', '#FFFFFF'), ('stroke-opacity="0.2"', 'stroke-opacity="0.35"'))}"),
-                    linear-gradient(120deg, #0B2E2D 0%, #145A55 55%, #1E6B64 100%);
-  background-repeat: no-repeat; background-position: right center; background-size: auto 140%, cover;
-  box-shadow: 0 6px 18px rgba(11,46,45,0.18);
-}}
-.pp-hero img {{ width: 52px; height: 52px; flex: none; }}
-.pp-hero .pp-title {{ font-size: 1.45rem; font-weight: 700; letter-spacing: .3px; line-height: 1.2; }}
-.pp-hero .pp-sub {{ font-size: .9rem; opacity: .85; margin-top: 2px; }}
-.pp-hero .pp-accent {{ color: {COPPER}; }}
 .pp-ar {{ font-size: .78em; opacity: .6; font-weight: 400; margin-inline-start: .45em; }}
-.pp-side {{ display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }}
-.pp-side img {{ width: 38px; height: 38px; }}
-.pp-side b {{ font-size: 1.15rem; color: #0B2E2D; }}
+.pp-name {{ font-size: 1.25rem; font-weight: 700; color: #0B2E2D; letter-spacing: .2px; }}
+.pp-name span {{ color: {COPPER}; }}
 </style>
 """, unsafe_allow_html=True)
 
 
-def brand_header(page: str) -> None:
-    logo = svg_data_uri("logo.svg")
-    st.markdown(f"""
-<div class="pp-hero">
-  <img src="{logo}" alt="PlantProof AI logo">
-  <div>
-    <div class="pp-title">PlantProof <span class="pp-accent">AI</span>
-      <span class="pp-ar">بلانت بروف</span></div>
-    <div class="pp-sub">Industrial incident intelligence · {page}
-      <span class="pp-ar">ذكاء أعطال المعدات الصناعية · {ar(page)}</span></div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-
 def sidebar_brand() -> None:
-    logo = svg_data_uri("logo.svg")
-    st.sidebar.markdown(f'<div class="pp-side"><img src="{logo}" alt="logo">'
-                        f'<b>PlantProof AI</b></div>', unsafe_allow_html=True)
+    """Logo as a small brand mark in the top corner; the platform name only in the sidebar."""
+    try:
+        st.logo(str(ASSETS / "logo.svg"), size="large")
+    except Exception:  # an older Streamlit without st.logo: the name below still shows
+        pass
+    st.sidebar.markdown('<div class="pp-name">PlantProof <span>AI</span></div>',
+                        unsafe_allow_html=True)
 
 
 # -------------------------------------------------------------------------- charts
@@ -949,7 +924,6 @@ def main() -> None:
         store.reset_observations()
         obs = store.observations(sid)
     ctx = Ctx(store, cfg, costs, meta, sid, obs, analyse(obs, cfg, sid))
-    brand_header(page)
 
     {"Overview": page_overview, "Evidence": page_evidence, "What If": page_whatif,
      "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,

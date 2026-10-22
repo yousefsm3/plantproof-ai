@@ -92,6 +92,17 @@ class AppSmokeTest(unittest.TestCase):
         names = [c[2].get("file_name", "") for c in fake.calls if c[0] == "download_button"]
         self.assertTrue(any("advisor" in n for n in names))
 
+    def test_advisor_summary_after_saved_handover(self):
+        session = SessionState()
+        self.run_app({"page": "Advisor", "scenario": "B",
+                      "adv_input": "سلّم الوردية: عطل في الحساس"}, press=True, session=session)
+        fake = self.run_app({"page": "Advisor", "scenario": "B",
+                             "adv_input": "عطني ملخص للشفت الاخير"}, session=session)
+        self.assertEqual(self.errors(fake), [])
+        ans = session["advisor_chat"][1][-1][1]
+        self.assertEqual(ans.intent, "summary")
+        self.assertEqual(ans.title_en, "Last shift summary")
+
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})
         warnings = " ".join(str(c[1]) for c in fake.calls if c[0] == "warning")

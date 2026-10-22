@@ -360,8 +360,71 @@ def handover_note(question: str, config: EngineConfig, analysis: AnalysisResult,
         attachment=doc)
 
 
+# ------------------------------------------------------- last shift summary
+def last_shift_summary(entry: dict[str, Any] | None, analysis: AnalysisResult) -> AdvisorAnswer:
+    """Summarise the most recent saved handover and what has changed since."""
+    if not entry:
+        return AdvisorAnswer(
+            "summary", "No saved handover yet", "لا يوجد تسليم محفوظ بعد",
+            [AdvisorItem("No handover has been saved for this scenario. The outgoing shift can "
+                         "prepare one here (e.g. \"handover: ...\") or on the Handover page, then "
+                         "press Save to History.",
+                         "لم يُحفظ أي تسليم لهذا السيناريو. يستطيع الموظف السابق تجهيزه هنا "
+                         "(مثل «تسليم: ...») أو من صفحة تسليم الوردية، ثم الضغط على احفظ في السجل.",
+                         [], "info")],
+            "Saved history can be wiped when the app restarts; import an exported history file "
+            "if the handover is missing.",
+            "قد يُحذف السجل المحفوظ عند إعادة تشغيل التطبيق؛ استورد ملف السجل المصدَّر إن لم يظهر التسليم.")
+    p = entry.get("payload", {})
+    items: list[AdvisorItem] = []
+    who = " → ".join(x for x in (p.get("outgoing"), p.get("incoming")) if x) or "-"
+    items.append(AdvisorItem(
+        f"Saved {entry.get('created_at', '')} · {p.get('shift', '')} · {who}",
+        f"حُفظ في {entry.get('created_at', '')} · {p.get('shift', '')} · {who}", [], "info"))
+    lead = p.get("leading_hypothesis") or {}
+    if lead:
+        items.append(AdvisorItem(
+            f"Leading hypothesis then: {lead.get('name')} ({lead.get('confidence', 0):.0%}).",
+            f"الفرضية الأقوى وقتها: {_name_ar(lead.get('name', ''))} ({lead.get('confidence', 0):.0%}).",
+            list(lead.get("record_ids", []))[:6], "info"))
+    if p.get("notes"):
+        items.append(AdvisorItem(f"Their note: \"{p['notes']}\"",
+                                 f"ملاحظتهم: «{p['notes']}»", [], "info"))
+    actions = list(p.get("actions", []))[:3]
+    for i, a in enumerate(actions, start=1):
+        items.append(AdvisorItem(f"Handed-over action {i}: {a}",
+                                 f"إجراء مُسلَّم {i}: {ar(a) or a}", [], "info"))
+    if p.get("cost"):
+        c = p["cost"]
+        items.append(AdvisorItem(f"Cost range given: {c.get('low')} - {c.get('high')} "
+                                 f"(base {c.get('base')}).",
+                                 f"نطاق التكلفة: {c.get('low')} - {c.get('high')}.", [], "info"))
+
+    then = {f.get("key") for f in p.get("contradictions", []) + p.get("missing_evidence", [])}
+    now = {f.key for f in list(analysis.contradictions) + list(analysis.missing)}
+    closed, still, new = sorted(then - now), sorted(then & now), sorted(now - then)
+    items.append(AdvisorItem(
+        f"Since then: {len(closed)} item(s) closed, {len(still)} still open, {len(new)} new.",
+        f"منذ ذلك الوقت: أُغلق {len(closed)} بند، وما زال {len(still)} مفتوحًا، وظهر {len(new)} جديد.",
+        [], "pass" if not still and not new else "fail"))
+    for k in still + new:
+        items.append(AdvisorItem(f"Open now: {k}", f"مفتوح الآن: {k}", [], "fail"))
+    top = analysis.top
+    if top is not None and lead and lead.get("id") != top.hypothesis_id:
+        items.append(AdvisorItem(
+            f"The leading hypothesis has changed to {top.name} ({top.confidence:.0%}).",
+            f"تغيّرت الفرضية الأقوى إلى {_name_ar(top.name)} ({top.confidence:.0%}).",
+            top.record_ids[:6], "fail"))
+    return AdvisorAnswer("summary", "Last shift summary", "ملخص الوردية الأخيرة", items,
+                         "Built from the latest saved handover and today's evidence.",
+                         "مبني من آخر تسليم محفوظ ومن أدلة اليوم.")
+
+
 # ------------------------------------------------------------------- routing
 INTENTS = {
+    "summary": ("summary", "summarise", "summarize", "last shift", "previous shift",
+                "what happened", "ملخص", "لخص", "لخّص", "الشفت", "الوردية السابقة",
+                "آخر وردية", "اخر وردية", "وش صار", "ماذا حدث"),
     "handover": ("handover", "hand over", "next shift", "shift note", "وردية", "الوردية",
                  "تسليم", "سلم", "سلّم", "المناوب", "اللي بعدي", "الموظف"),
     "checks": ("first", "check", "next", "priority", "inspect", "test",
@@ -387,14 +450,17 @@ def detect_intent(question: str) -> str | None:
         return None
     scores = {k: sum(1 for w in words if w in q) for k, words in INTENTS.items()}
     # On a tie prefer the broader answer: a plan already includes the checks.
-    order = ("handover", "plan", "restart", "explain", "checks")
+    order = ("summary", "handover", "plan", "restart", "explain", "checks")
     best = max(order, key=lambda k: (scores[k], -order.index(k)))
     return best if scores[best] > 0 else None
 
 
 def answer(question: str, observations, config: EngineConfig, analysis: AnalysisResult,
-           costs: dict[str, Any], meta: dict[str, Any] | None = None) -> AdvisorAnswer:
+           costs: dict[str, Any], meta: dict[str, Any] | None = None,
+           last_handover: dict[str, Any] | None = None) -> AdvisorAnswer:
     intent = detect_intent(question)
+    if intent == "summary":
+        return last_shift_summary(last_handover, analysis)
     if intent == "handover":
         return handover_note(question, config, analysis, meta or {}, costs)
     if intent == "checks":
@@ -408,6 +474,8 @@ def answer(question: str, observations, config: EngineConfig, analysis: Analysis
     return AdvisorAnswer(
         "help", "I can answer these questions", "أستطيع الإجابة عن هذه الأسئلة",
         [AdvisorItem(en, ar_, status="info") for en, ar_, _ in SUGGESTED]
+        + [AdvisorItem("Summarise the last shift: \"give me a summary of the last shift\"",
+                       "لخّص الوردية الأخيرة: «عطني ملخص للشفت الأخير»", status="info")]
         + [AdvisorItem("Prepare a shift handover: write your note, e.g. "
                        "\"handover: sensor recalibrated, waiting for alignment check\"",
                        "جهّز تسليم وردية: اكتب ملاحظتك، مثل «تسليم: تمت معايرة الحساس، "

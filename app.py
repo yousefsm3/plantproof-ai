@@ -537,7 +537,9 @@ def page_advisor(ctx: Ctx) -> None:
     if typed:
         asked = typed.strip()[:300]
     if asked:
-        ans = advisor.answer(asked, ctx.obs, ctx.cfg, ctx.result, ctx.costs, ctx.meta)
+        saved = ctx.store.list_history("handover", ctx.sid)
+        ans = advisor.answer(asked, ctx.obs, ctx.cfg, ctx.result, ctx.costs, ctx.meta,
+                             saved[0] if saved else None)
         chat = chat + [(asked, ans)]
         st.session_state["advisor_chat"] = (ctx.sid, chat)
 

@@ -74,6 +74,29 @@ class AdvisorTests(unittest.TestCase):
         self.assertIn("pass", [i.status for i in b.items])    # sensor fault agrees
         self.assertIn("fail", [i.status for i in b.items])    # but items still open
 
+    def test_last_shift_summary(self):
+        import tempfile
+        from pathlib import Path
+        from plantproof.domain import load_scenario_index
+        from plantproof.storage import Store
+        meta = {m["id"]: m for m in load_scenario_index()}
+        obs, cfg, res, costs = setup("B")
+        none = advisor.answer("عطني ملخص للشفت الاخير", obs, cfg, res, costs, meta["B"], None)
+        self.assertEqual(none.intent, "summary")
+        self.assertIn("No saved handover", none.title_en)
+        with tempfile.TemporaryDirectory() as d:
+            store = Store(Path(d) / "t.db")
+            drafted = advisor.answer("سلّم الوردية: عطل في الحساس", obs, cfg, res, costs, meta["B"])
+            doc = drafted.attachment
+            store.save("handover", "B", "Handover", doc.to_dict() | {"markdown": doc.to_markdown()})
+            last = store.list_history("handover", "B")[0]
+            summ = advisor.answer("give me a summary of the last shift", obs, cfg, res, costs,
+                                  meta["B"], last)
+            text = " ".join(i.en for i in summ.items)
+            self.assertIn("Vibration sensor fault", text)
+            self.assertIn("0 item(s) closed", text)
+            self.assertIn("عطل في الحساس", " ".join(i.ar for i in summ.items))
+
     def test_every_item_has_arabic(self):
         obs, cfg, res, costs = setup("A")
         for q in ("check first", "restart", "why", "plan", "?"):

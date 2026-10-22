@@ -73,7 +73,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("bt_engine", session)
         fake = self.run_app({"page": "Handover", "scenario": "B"}, press=True, session=session)
         names = [c[2].get("file_name", "") for c in fake.calls if c[0] == "download_button"]
-        self.assertTrue(any(n.endswith(".md") for n in names))
+        self.assertTrue(any(n.endswith(".html") for n in names))
 
     def test_advisor_chat_in_arabic(self):
         session = SessionState()

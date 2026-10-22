@@ -33,6 +33,19 @@ class HandoverTests(unittest.TestCase):
         self.assertEqual(len(doc.notes), handover.MAX_NOTES)
         self.assertNotIn("Cost impact", doc.to_markdown())
 
+    def test_html_report_is_complete_and_safe(self):
+        from html.parser import HTMLParser
+        est = cost_model.estimate("bearing_wear", cost_model.load_cost_assumptions())
+        doc = handover.build_handover(self.res, self.meta, shift="Night",
+                                      notes="<script>alert(1)</script> تم فحص المضخة", cost=est)
+        page = doc.to_html(logo_svg="<svg></svg>")
+        for text in ("Shift Handover Report", "تقرير تسليم الوردية", "Bearing wear",
+                     "A-OPS-0004", "£24,970", "Laser shaft alignment check", "تم فحص المضخة"):
+            self.assertIn(text, page)
+        self.assertNotIn("<script>alert", page)          # notes are escaped
+        self.assertIn("&lt;script&gt;", page)
+        HTMLParser().feed(page)                            # parses without error
+
     def test_actions_cover_every_gap(self):
         doc = handover.build_handover(self.res, self.meta, shift="Day")
         text = " ".join(doc.actions)

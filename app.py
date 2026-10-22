@@ -256,6 +256,13 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
 """, unsafe_allow_html=True)
 
 
+def report_html(doc: handover.Handover) -> str:
+    """Branded HTML handover report with the project logo embedded."""
+    logo = (ASSETS / "logo.svg").read_text(encoding="utf-8")
+    logo = logo[logo.index("<svg"):]
+    return doc.to_html(logo_svg=logo)
+
+
 def sidebar_brand() -> None:
     """Logo as a small brand mark in the top corner; the platform name only in the sidebar."""
     try:
@@ -564,9 +571,10 @@ def page_advisor(ctx: Ctx) -> None:
                     ctx.store.save("handover", ctx.sid, "Handover · Advisor",
                                    doc.to_dict() | {"markdown": md})
                     st.success(with_ar("Handover saved."))
-                h2.download_button(f":material/download: {bi('Markdown report')}", md,
-                                   file_name=f"handover_{ctx.sid}_advisor_{n}.md",
-                                   mime="text/markdown", key=f"adv_ho_md_{n}")
+                h2.download_button(f":material/download: {bi('Handover report')}",
+                                   report_html(doc),
+                                   file_name=f"handover_{ctx.sid}_advisor_{n}.html",
+                                   mime="text/html", key=f"adv_ho_html_{n}")
     if st.button(bi("Clear conversation"), key="adv_clear"):
         st.session_state.pop("advisor_chat", None)
         st.rerun()
@@ -959,9 +967,9 @@ def page_handover(ctx: Ctx) -> None:
             st.markdown(_bilingual_report(md))
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         d1, d2, d3 = st.columns(3)
-        d1.download_button(f":material/download: {bi('Markdown report')}", md,
-                           file_name=f"handover_{ctx.sid}_{stamp}.md",
-                           mime="text/markdown", key="ho_md")
+        d1.download_button(f":material/download: {bi('Handover report')}", report_html(doc),
+                           file_name=f"handover_{ctx.sid}_{stamp}.html",
+                           mime="text/html", key="ho_html")
         d2.download_button(f":material/download: {bi('JSON data')}", doc.to_json(),
                            file_name=f"handover_{ctx.sid}_{stamp}.json",
                            mime="application/json", key="ho_json")

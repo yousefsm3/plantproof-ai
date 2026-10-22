@@ -277,6 +277,7 @@ AR: dict[str, str] = {
     "Notes for the incoming shift": "ملاحظات للوردية القادمة",
     "Generate handover": "أنشئ تقرير التسليم",
     "Markdown report": "تقرير Markdown",
+    "Handover report": "تقرير التسليم",
     "JSON data": "بيانات JSON",
     "Save to History": "احفظ في السجل",
     "Handover saved.": "حُفظ التسليم.",

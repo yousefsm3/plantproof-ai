@@ -1,0 +1,31 @@
+# Keeps the Streamlit Community Cloud app awake by visiting it every 4 hours.
+# Streamlit puts apps to sleep after 12 hours without traffic.
+# Note: GitHub pauses scheduled workflows in public repos after 60 days without
+# repository activity; any commit (or "Enable workflow" in the Actions tab) resumes it.
+name: Keep app awake
+
+on:
+  schedule:
+    - cron: "17 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install headless browser
+        run: |
+          pip install playwright==1.48.0
+          python -m playwright install --with-deps chromium
+      - name: Visit the app
+        env:
+          APP_URL: https://plantproof-ai.streamlit.app
+        run: python scripts/keep_awake.py

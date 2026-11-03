@@ -53,9 +53,10 @@ from plantproof.translations import ar, bi, bi_plain
 st.set_page_config(page_title="PlantProof AI", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="expanded")
 
-PAGES = ("Overview", "Operations Room", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
+PAGES = ("Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
          "Blind Test", "Cost", "History", "Handover")
 ADVISOR = "Advisor"   # opened from its own highlighted button, not from the page list
+OPS = "Operations Room"   # also opened from its own red button (and by the live alarm)
 PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_search:",
               "Advisor": ":material/psychology:",
               "What If": ":material/science:", "Blind Test": ":material/fact_check:",
@@ -339,6 +340,11 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
   font-weight: 700; font-size: .85rem; padding: 5px 12px; border-radius: 999px; }}
 .pp-li:hover {{ filter: brightness(1.1); }}
 .st-key-pp_alarm_go {{ display: none !important; }}
+.st-key-pp_ops_side button {{ width: 100%; padding: 12px 14px !important; margin: 6px 0 2px;
+  background: linear-gradient(135deg, #D0342C 0%, #7A160F 100%) !important; border: 1px solid #FF8A7A !important;
+  box-shadow: 0 6px 18px rgba(180,35,24,.45) !important; font-weight: 800 !important; letter-spacing: .3px; }}
+.st-key-pp_ops_side button * {{ color: #FFFFFF !important; }}
+.st-key-pp_ops_side button:hover {{ filter: brightness(1.1); }}
 .st-key-pp_ops_alarm {{ background: #FDEDEB !important; border: 2px solid {ALERT} !important;
   border-left: 8px solid {ALERT} !important; }}
 .st-key-pp_ops_alarm h3 {{ color: {ALERT} !important; }}
@@ -876,10 +882,13 @@ def live_monitor(pair: str, mode: str, height: int) -> None:
 
 
 # -------------------------------------------------------------- operations room
+def open_ops_room() -> None:
+    st.session_state["view"] = OPS
+
+
 def go_ops_room() -> None:
     """Called by the live sensor's red alarm bar (it clicks a hidden button)."""
-    st.session_state["view"] = None
-    st.session_state["page"] = "Operations Room"
+    st.session_state["view"] = OPS
     st.session_state["pp_live_alarm"] = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
 
 
@@ -971,7 +980,8 @@ def _ops_advisor(ctx: Ctx) -> None:
     with st.container(border=True, key="pp_ops_card_ai"):
         st.markdown(f"**{PAGE_ICONS[ADVISOR]} {bi('AI Advisor')}**")
         with st.form("ops_ask", clear_on_submit=True, border=False):
-            q = st.text_input(bi("Ask"), placeholder="مثال: هل الزيت سليم؟", label_visibility="collapsed")
+            q = st.text_input(bi("Ask"), placeholder="e.g. Is the oil OK? · مثال: هل الزيت سليم؟",
+                              label_visibility="collapsed")
             sent = st.form_submit_button(bi("Ask"))
         if sent and q and q.strip():
             saved = ctx.store.list_history("handover", ctx.sid)
@@ -1001,10 +1011,10 @@ def page_ops_room(ctx: Ctx) -> None:
                 st.markdown(f"## :material/crisis_alert: LIVE ALARM · {ctx.meta['asset_name']}")
                 st.markdown(f"Abnormal vibration detected by the live sensor at **{alarm}**. "
                             f"Line 3 at risk.  \n"
-                            f"إنذار مباشر: الحساس اكتشف اهتزازًا غير طبيعي الساعة {alarm}.")
+                            f":small[إنذار مباشر: الحساس اكتشف اهتزازًا غير طبيعي الساعة {alarm}.]")
             else:
                 st.markdown(f"## :material/crisis_alert: {bi('Operations Room')} · {ctx.meta['asset_name']}")
-                st.markdown(f"{ctx.meta['summary']}  \n{ar(ctx.meta['summary'])}")
+                st.markdown(f"{ctx.meta['summary']}  \n:small[{ar(ctx.meta['summary'])}]")
         with h2:
             if alarm:
                 st.button(f":material/done: {bi('Acknowledge')}", key="pp_ack", on_click=ack_alarm)
@@ -1029,7 +1039,7 @@ def page_ops_room(ctx: Ctx) -> None:
         for col, (key, icon, name, _t) in zip(st.columns(len(OPS_PANELS)), OPS_PANELS):
             on = "_on" if panel == key else ""
             with col.container(key=f"pp_ops_tab{on}_{key}"):
-                st.button(f"{icon} {ar(name)}", key=f"pp_ops_btn_{key}", help=name,
+                st.button(f"{icon} {name} :small[{ar(name)}]", key=f"pp_ops_btn_{key}",
                           on_click=set_ops_panel, args=(key,))
         if panel:
             with st.container(border=True, key="pp_ops_card_panel"):
@@ -1484,6 +1494,8 @@ def main() -> None:
     inject_theme()
     sidebar_brand()
     st.sidebar.caption(with_ar("Evidence-first investigations for plant incidents"))
+    st.sidebar.button(f"{PAGE_ICONS[OPS]} Operations Room :small[غرفة العمليات]", key="pp_ops_side",
+                      on_click=open_ops_room, type="primary")
     st.sidebar.button(f"{PAGE_ICONS[ADVISOR]} AI Advisor · المساعد الذكي", key="pp_advisor_side",
                       on_click=open_advisor, type="primary")
     try:   # a phone that scanned the pairing QR opens straight on the Live Sensor page
@@ -1494,7 +1506,8 @@ def main() -> None:
         pass
     nav = st.sidebar.radio(bi("Navigate"), PAGES, key="page", on_change=close_advisor,
                            format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
-    page = ADVISOR if st.session_state.get("view") == ADVISOR else nav
+    view = st.session_state.get("view")
+    page = view if view in (ADVISOR, OPS) else nav
     titles = {s["id"]: s["title"] for s in index}
     sid = st.sidebar.selectbox(bi("Scenario"), list(titles),
                                format_func=lambda k: bi_plain(titles[k]), key="scenario")

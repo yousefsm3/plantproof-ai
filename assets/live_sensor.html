@@ -89,6 +89,7 @@
     </div>
   </div>
 
+  <div style="text-align:right;font-size:.7rem;color:#8A9B97">sensor v1.3</div>
   <div id="status" class="status s-idle">Choose how to use the sensor. <span class="ar">اختر طريقة الاستخدام.</span></div>
   <div class="stats" style="grid-template-columns:repeat(4,1fr)">
     <div class="stat"><span>Vibration (RMS, m/s²) · الاهتزاز</span><b id="vRms">–</b></div>
@@ -186,7 +187,7 @@
     if (f[0] >= VIB_LIMIT) {                 // hard limit: alarm at once, learned or not
       points.push({ rms: f[0], score: model ? model.score(f) : null, hard: true });
       if (points.length > KEEP) points.shift();
-      if (!alerted && mode !== "phone") raiseBanner();
+      if (mode !== "phone") raiseBanner();   // every time it reaches the limit
       alerted = true;
       setStatus("s-bad", `ALARM: vibration ${f[0].toFixed(1)} m/s² is above the limit of ${VIB_LIMIT}.`,
                 `إنذار: الاهتزاز ${f[0].toFixed(1)} تجاوز الحد ${VIB_LIMIT}.`, true);
@@ -212,7 +213,7 @@
       streak = s > model.thr ? streak + 1 : 0;
       points.push({ rms: f[0], score: s });
       if (streak >= RUN) {
-        if (!alerted && mode !== "phone") raiseBanner();
+        if (mode !== "phone") raiseBanner();
         alerted = true;
         setStatus("s-bad", `Anomaly detected: vibration no longer matches the learned normal (score ${s.toFixed(1)} vs ${model.thr.toFixed(1)}).`,
                   "تم اكتشاف سلوك غير طبيعي: الاهتزاز لم يعد يطابق الطبيعي الذي تعلّمه النموذج.", true);
@@ -291,25 +292,43 @@
     });
     return loaded[src];
   }
-  async function connect(onReady) {
+  // Both sides join two public brokers at once and keep retrying, so one broker being
+  // down or slow never breaks the link. Messages carry a sequence number to drop duplicates.
+  async function connect() {
     await loadScript("https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js");
-    for (const url of BROKERS) {
-      const client = window.mqtt.connect(url, { connectTimeout: 6000, reconnectPeriod: 2000,
-        clientId: "pp-" + Math.random().toString(16).slice(2, 10) });
-      const ok = await new Promise(res => {
-        const t = setTimeout(() => res(false), 7000);
-        client.once("connect", () => { clearTimeout(t); res(true); });
+    const clients = BROKERS.map(url => window.mqtt.connect(url, { connectTimeout: 8000,
+      reconnectPeriod: 2000, clientId: "pp-" + Math.random().toString(16).slice(2, 10) }));
+    const handlers = [], topics = [];
+    let lastSeq = -1;
+    clients.forEach(c => {
+      c.on("connect", () => topics.forEach(t => c.subscribe(t)));
+      c.on("error", () => {});
+      c.on("message", (t, buf) => {
+        let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
+        if (m.reset) { if (lastSeq === -2) return; lastSeq = -2; }
+        else { if (m.s <= lastSeq) return; lastSeq = m.s; }
+        handlers.forEach(h => h(t, m));
       });
-      if (ok) { onReady && onReady(url); return client; }
-      client.end(true);
-    }
-    throw new Error("no broker");
+    });
+    const bus = {
+      subscribe(t) { topics.push(t); clients.forEach(c => c.connected && c.subscribe(t)); },
+      onMessage(h) { handlers.push(h); },
+      publish(t, obj) { const b = JSON.stringify(obj); clients.forEach(c => c.connected && c.publish(t, b)); },
+      connected() { return clients.some(c => c.connected); },
+      end() { clients.forEach(c => { try { c.end(true); } catch (e) {} }); },
+    };
+    const ok = await new Promise(res => {
+      const t = setTimeout(() => res(false), 20000);
+      clients.forEach(c => c.once("connect", () => { clearTimeout(t); res(true); }));
+    });
+    if (!ok) { bus.end(); throw new Error("no broker"); }
+    return bus;
   }
   let timer = null, client = null, mode = null;
   function stopAll() {
     if (timer) clearInterval(timer); timer = null;
     window.removeEventListener("devicemotion", onMotion);
-    if (client) { try { client.end(true); } catch (e) {} client = null; }
+    if (client) { try { client.end(); } catch (e) {} client = null; }
     samples = []; fault = 0; gotMotion = false; lastG = null;
   }
   function show(id) {
@@ -336,8 +355,7 @@
     let last = 0;
     client.subscribe(TOPIC(code));
     setStatus("s-idle", "Ready. Waiting for the phone to start sending.", "جاهز. بانتظار الجوال يبدأ الإرسال.");
-    client.on("message", (_t, buf) => {
-      let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
+    client.onMessage((_t, m) => {
       if (m.reset) { resetModel(); memSet({ code, model: null }); return; }
       last = Date.now();
       $("link").classList.add("live");
@@ -364,12 +382,13 @@
     try { client = await connect(); }
     catch (e) { return setStatus("s-bad", "Could not reach the messaging service. Check the internet.", "تعذّر الاتصال بخدمة الرسائل. تأكد من الإنترنت."); }
     const topic = TOPIC(code); let sent = 0; const t0 = Date.now();
-    client.publish(topic, JSON.stringify({ reset: 1 }));
+    client.publish(topic, { reset: 1 });
+    setTimeout(() => client && client.publish(topic, { reset: 1 }), 1500);   // reach a broker that joined late
     timer = setInterval(() => {
       if (!demo && !gotMotion && Date.now() - t0 > 3000)
         return setStatus("s-bad", "No sensor data on this device. Use Send demo vibration.", "لا توجد بيانات من حساس هذا الجهاز. استخدم الاهتزاز التجريبي.");
       const f = takeWindow(demo); if (!f) return;
-      client.publish(topic, JSON.stringify({ r: +f[0].toFixed(4), p: +f[1].toFixed(4), s: ++sent }));
+      client.publish(topic, { r: +f[0].toFixed(4), p: +f[1].toFixed(4), s: ++sent });
       $("vRms").textContent = f[0].toFixed(2);
       points.push({ rms: f[0], score: null }); if (points.length > KEEP) points.shift(); draw();
       setStatus("s-ok", `Sending to the screen (code ${code}) · ${sent} readings`, `يرسل للشاشة (الرمز ${code}) · ${sent} قراءة`);

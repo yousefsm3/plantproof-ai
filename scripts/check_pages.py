@@ -4,6 +4,7 @@ Run on demand by .github/workflows/check-pages.yml. Prints one line per page and
 screenshot per page into ./page-shots (uploaded as a workflow artifact).
 """
 
+import base64
 import os
 import sys
 import time
@@ -52,6 +53,11 @@ def main() -> int:
                 text = frame.locator("body").inner_text(timeout=10_000)
                 hit = next((e for e in ERRORS if e in text), None)
                 page.screenshot(path=str(out / f"{name.replace(' ', '_')}.png"), full_page=True)
+                if name in os.environ.get("PRINT_SHOTS", "").split(","):
+                    jpg = page.screenshot(type="jpeg", quality=55, full_page=True)
+                    print(f"SHOT-BEGIN {name}")
+                    print(base64.b64encode(jpg).decode())
+                    print(f"SHOT-END {name}")
                 if hit:
                     bad += 1
                     i = text.index(hit)

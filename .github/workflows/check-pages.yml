@@ -3,6 +3,11 @@ name: Check app pages
 
 on:
   workflow_dispatch:
+    inputs:
+      print_shots:
+        description: "Comma-separated page names whose screenshots are printed to the log"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -26,6 +31,7 @@ jobs:
         if: always()
         env:
           APP_URL: https://plantproof-ai.streamlit.app
+          PRINT_SHOTS: ${{ inputs.print_shots }}
         run: python scripts/check_pages.py
       - uses: actions/upload-artifact@v4
         if: always()

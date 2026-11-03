@@ -27,7 +27,7 @@ def main() -> int:
         b = p.chromium.launch()
         screen = b.new_page()
         screen.goto(page_file(""))
-        for _ in range(40):
+        for _ in range(90):
             code = screen.text_content("#code").strip()
             status = screen.text_content("#status")
             if code.isdigit() and "Ready" in status:
@@ -38,7 +38,7 @@ def main() -> int:
         phone = b.new_page()
         phone.goto(page_file(code))
         phone.click("#btnSendDemo")
-        for _ in range(60):                  # public brokers can be slow to accept a connection
+        for _ in range(90):                  # public brokers can be slow to accept a connection
             time.sleep(1)
             st = phone.text_content("#status")
             if "readings" in st and int(st.split("·")[1].split()[0]) >= 26:

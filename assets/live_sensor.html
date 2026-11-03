@@ -110,7 +110,8 @@
 <script>
 (() => {
   const CFG = { appUrl: "__APP_URL__", pair: "__PAIR__", mode: "__MODE__" };
-  const BROKERS = ["wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt"];
+  const BROKERS = ["wss://broker.hivemq.com:8884/mqtt", "wss://broker.emqx.io:8084/mqtt",
+                   "wss://test.mosquitto.org:8081/mqtt"];
   const TOPIC = c => "plantproof-ai/yaqen/live/" + c;
   const LEARN_N = 20, WIN_MS = 500, KEEP = 120, MARGIN = 1.6, RUN = 2;
   const VIB_LIMIT = 55;     // vibration (RMS, m/s²) at or above this raises the alarm immediately
@@ -294,7 +295,7 @@
   }
   // Both sides join two public brokers at once and keep retrying, so one broker being
   // down or slow never breaks the link. Messages carry a sequence number to drop duplicates.
-  async function connect() {
+  async function connect(onSlow) {
     await loadScript("https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js");
     const clients = BROKERS.map(url => window.mqtt.connect(url, { connectTimeout: 8000,
       reconnectPeriod: 2000, clientId: "pp-" + Math.random().toString(16).slice(2, 10) }));
@@ -317,11 +318,11 @@
       connected() { return clients.some(c => c.connected); },
       end() { clients.forEach(c => { try { c.end(true); } catch (e) {} }); },
     };
-    const ok = await new Promise(res => {
-      const t = setTimeout(() => res(false), 20000);
+    // keep trying (the clients reconnect by themselves); tell the user if it is slow
+    await new Promise(res => {
+      const t = setTimeout(() => onSlow && onSlow(), 8000);
       clients.forEach(c => c.once("connect", () => { clearTimeout(t); res(true); }));
     });
-    if (!ok) { bus.end(); throw new Error("no broker"); }
     return bus;
   }
   let timer = null, client = null, mode = null;
@@ -350,7 +351,9 @@
       $("qr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
     }).catch(() => { $("qr").textContent = url; });
     setStatus("s-idle", "Connecting…", "جاري الاتصال…");
-    try { client = await connect(); }
+    const slow = () => setStatus("s-learn", "Still connecting… checking the internet and trying other servers.",
+                                 "ما زال يحاول الاتصال… يجرّب خوادم أخرى.");
+    try { client = await connect(slow); }
     catch (e) { return setStatus("s-bad", "Could not reach the messaging service. Check the internet and try again.", "تعذّر الاتصال بخدمة الرسائل. تأكد من الإنترنت وحاول مرة ثانية."); }
     let last = 0;
     client.subscribe(TOPIC(code));
@@ -379,7 +382,9 @@
       return setStatus("s-bad", "Motion access was blocked. Allow it, or use Send demo vibration.", "تم منع الوصول للحركة. اسمح به، أو استخدم الاهتزاز التجريبي.");
     $("btnSendFault").classList.toggle("hide", !demo);
     setStatus("s-idle", "Connecting…", "جاري الاتصال…");
-    try { client = await connect(); }
+    const slow = () => setStatus("s-learn", "Still connecting… checking the internet and trying other servers.",
+                                 "ما زال يحاول الاتصال… يجرّب خوادم أخرى.");
+    try { client = await connect(slow); }
     catch (e) { return setStatus("s-bad", "Could not reach the messaging service. Check the internet.", "تعذّر الاتصال بخدمة الرسائل. تأكد من الإنترنت."); }
     const topic = TOPIC(code); let sent = 0; const t0 = Date.now();
     client.publish(topic, { reset: 1 });

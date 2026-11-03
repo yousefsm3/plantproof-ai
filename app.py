@@ -939,25 +939,44 @@ def ops_css() -> None:
 .st-key-pp_ops_case_base [data-testid="stMetric"] {{ border-left-color: #C8844A !important; }}
 .st-key-pp_ops_case_high [data-testid="stMetric"] {{ border-left-color: #B42318 !important; }}
 [data-testid="stMain"] .pp-yaqen {{ background: #FFFFFF; }}
+.pp-tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 4px 0 10px; }}
+.pp-tile {{ background: #1E0807; border: 1px solid #5A1A14; border-left: 5px solid #E5483A; border-radius: 10px;
+  padding: 10px 12px; }}
+.pp-tile.hot {{ background: linear-gradient(135deg, #5C110B, #2A0807); border-color: #FF6B5A; }}
+.pp-tile.case-low {{ border-left-color: #2FA36B; }} .pp-tile.case-base {{ border-left-color: #E0A060; }}
+.pp-tile.case-high {{ border-left-color: #FF4D3D; }}
+.pp-tl {{ color: #FFB4A8; font-size: .82rem; font-weight: 600; line-height: 1.3; }}
+.pp-tl span, .pp-tn span {{ color: #C98C84; font-size: .78em; font-weight: 400; }}
+.pp-tv {{ color: #FFFFFF; font-size: 1.7rem; font-weight: 800; line-height: 1.25; margin: 2px 0; }}
+.pp-tn {{ color: #F3D3CE; font-size: .8rem; line-height: 1.35; }}
+[data-testid="stElementContainer"]:has(> [data-testid="stMarkdown"] style) {{ display: none; }}
 </style>""", unsafe_allow_html=True)
+
+
+def ops_tile(label: str, value: str, note: str = "", note_ar: str = "", tone: str = "") -> str:
+    """One dark KPI tile (HTML): English label with small Arabic, big value, short note."""
+    e = html.escape
+    return (f'<div class="pp-tile {tone}"><div class="pp-tl">{e(label)} <span>{e(ar(label))}</span></div>'
+            f'<div class="pp-tv">{e(value)}</div>'
+            f'<div class="pp-tn">{e(note)} <span>{e(note_ar)}</span></div></div>')
+
+
+def tiles(items: list[str]) -> None:
+    st.markdown(f'<div class="pp-tiles">{"".join(items)}</div>', unsafe_allow_html=True)
 
 
 def _ops_panel(ctx: Ctx, panel: str) -> None:
     r, top = ctx.result, ctx.result.top
     if panel == "hyp":
-        cols = st.columns(3)
-        for col, a in zip(cols, r.assessments[:3]):
-            why_en, why_ar = why_line(a)
-            with col.container(key=f"pp_ops_kpi_h{a.rank}"):
-                st.metric(f"#{a.rank} {a.name}", pct(a.confidence), ar(a.name), delta_color="off")
-            col.caption(f"{why_en}  \n{gray(why_ar)}")
+        tiles([ops_tile(a.name, pct(a.confidence), why_line(a)[0], why_line(a)[1],
+                        "hot" if a.rank == 1 else "") for a in r.assessments[:3]])
     elif panel == "cost" and top:
         est = cost_model.estimate(top.hypothesis_id, ctx.costs).totals
         st.caption(f"{bi('If the leading cause is confirmed')}: {top.name} {gray(ar(top.name))}")
-        cols = st.columns(3)
-        for col, case in zip(cols, cost_model.CASES):
-            with col.container(key=f"pp_ops_case_{case}"):
-                st.metric(f"{case.title()} · {CASE_AR[case]}", money(est[case], ctx))
+        notes = {"low": ("Best case", "أفضل حالة"), "base": ("Most likely", "الأرجح"),
+                 "high": ("Worst case", "أسوأ حالة")}
+        tiles([ops_tile(case.title(), money(est[case], ctx), *notes[case], f"case-{case}")
+               for case in cost_model.CASES])
     elif panel == "contra":
         headlines(r.contradictions, "ops_c", "No contradictions detected.")
     elif panel == "miss":
@@ -965,10 +984,10 @@ def _ops_panel(ctx: Ctx, panel: str) -> None:
     elif panel == "ew":
         ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
         if ew and ew.first_warning:
-            c1, c2, c3 = st.columns(3)
-            c1.metric(bi("First AI warning"), ew.first_warning.timestamp.replace("T", " ")[5:16])
-            c2.metric(bi("First alarm"), ew.first_alarm[0].replace("T", " ")[5:16] if ew.first_alarm else "—")
-            c3.metric(bi("Warning lead time"), f"{ew.lead_hours:g} h" if ew.lead_hours else "Same hour")
+            tiles([ops_tile("First AI warning", ew.first_warning.timestamp.replace("T", " ")[5:16]),
+                   ops_tile("First alarm", ew.first_alarm[0].replace("T", " ")[5:16] if ew.first_alarm else "—"),
+                   ops_tile("Warning lead time", f"{ew.lead_hours:g} h" if ew.lead_hours else "Same hour",
+                            tone="hot")])
         else:
             st.info(with_ar("No unusual behaviour detected in this window."))
     target = next(t for k, _i, _n, t in OPS_PANELS if k == panel)
@@ -1007,7 +1026,6 @@ def page_ops_room(ctx: Ctx) -> None:
         h1, h2 = st.columns([4, 1])
         with h1:
             if alarm:
-                st.markdown(f'<span class="pp-alarm-on"></span>', unsafe_allow_html=True)
                 st.markdown(f"## :material/crisis_alert: LIVE ALARM · {ctx.meta['asset_name']}")
                 st.markdown(f"Abnormal vibration detected by the live sensor at **{alarm}**. "
                             f"Line 3 at risk.  \n"
@@ -1021,17 +1039,15 @@ def page_ops_room(ctx: Ctx) -> None:
 
     ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
     est = cost_model.estimate(top.hypothesis_id, ctx.costs).totals if top else None
-    kpis = [
-        ("Leading hypothesis", f"{pct(top.confidence)}" if top else "—", top.name if top else ""),
-        ("AI early warning", f"{ew.lead_hours:g} h" if ew and ew.warned_before_alarm else "—",
-         "before the first alarm"),
-        ("Contradictions", str(len(r.contradictions)), "records disagree"),
-        ("Missing evidence", str(len(r.missing)), "checks not done"),
-        ("Cost if confirmed", money(est["base"], ctx) if est else "—", "base case"),
-    ]
-    for i, (col, (label, value, note)) in enumerate(zip(st.columns(5), kpis)):
-        with col.container(key=f"pp_ops_kpi_{i}"):
-            st.metric(bi(label), value, note, delta_color="off")
+    tiles([
+        ops_tile("Leading hypothesis", pct(top.confidence) if top else "—",
+                 top.name if top else "", ar(top.name) if top else "", "hot"),
+        ops_tile("AI early warning", f"{ew.lead_hours:g} h" if ew and ew.warned_before_alarm else "—",
+                 "before the first alarm", "قبل أول إنذار"),
+        ops_tile("Contradictions", str(len(r.contradictions)), "records disagree", "سجلات متعارضة"),
+        ops_tile("Missing evidence", str(len(r.missing)), "checks not done", "فحوصات ناقصة"),
+        ops_tile("Cost if confirmed", money(est["base"], ctx) if est else "—", "most likely", "الأرجح"),
+    ])
 
     left, right = st.columns([2, 1])
     with left:
@@ -1527,7 +1543,7 @@ def main() -> None:
 
     with st.container(key="pp_alarm_go"):       # clicked by the live sensor's red alarm bar
         st.button("Live alarm", key="pp_alarm_btn", on_click=go_ops_room)
-    if page != ADVISOR:
+    if page not in (ADVISOR, OPS):
         with st.container(key="pp_fab"):
             st.button(f"{PAGE_ICONS[ADVISOR]} Ask the AI Advisor · اسأل المساعد",
                       key="pp_advisor_fab", on_click=open_advisor)

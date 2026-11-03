@@ -377,6 +377,7 @@
     document.querySelectorAll(".note").forEach(n => n.classList.add("hide"));
     $("qr").classList.add("hide");
     $("chart").style.height = "150px";
+    $("code").style.fontSize = "1.5rem"; $("code").style.letterSpacing = ".15em";
   }
   const pre = /^\d{6}$/.test(CFG.pair) && CFG.mode !== "ops" ? CFG.pair : "";
   if (pre) { $("codeIn").value = pre; $("tPhone").onclick(); }

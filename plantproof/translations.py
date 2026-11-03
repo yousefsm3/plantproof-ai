@@ -242,6 +242,9 @@ AR: dict[str, str] = {
     'AI early warning': 'الإنذار المبكر',
     'Cost if confirmed': 'التكلفة إذا تأكد',
     'Hypotheses': 'الاحتمالات',
+    'Best case': 'أفضل حالة',
+    'Most likely': 'الأرجح',
+    'Worst case': 'أسوأ حالة',
     # --- what if
     "What If simulations": "محاكاة ماذا لو",
     "Changes are applied to a copy of the data. Original observations are never modified - each run proves this with a fingerprint check.":

@@ -186,8 +186,9 @@ class AppSmokeTest(unittest.TestCase):
         cost = SessionState()
         cost["ops_panel"] = "cost"
         fake = self.run_app({"page": "Operations Room", "scenario": "A"}, session=cost)
-        metrics = [c for c in fake.calls if c[0] == "metric"]
-        self.assertTrue(any("Base" in str(c[1][0]) for c in metrics))
+        shown = " ".join(str(c[1]) for c in fake.calls if c[0] == "markdown")
+        for word in ("Best case", "Most likely", "Worst case"):
+            self.assertIn(word, shown)
 
     def test_ops_room_has_its_own_sidebar_button(self):
         session = SessionState()

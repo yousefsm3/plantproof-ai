@@ -128,6 +128,24 @@ class AppSmokeTest(unittest.TestCase):
         titles = " ".join(str(c[1]) for c in fake.calls if c[0] == "title")
         self.assertIn("Engineering advisor", titles)
 
+    def test_recovers_from_old_modules_left_in_memory(self):
+        """Redeploy case: an older plantproof.storage is still in memory (no sync_demo_data)."""
+        import plantproof
+        import plantproof.storage as old_storage
+        plantproof.__dict__.pop("_source_digest", None)
+
+        class OldStore:                      # stands in for the pre-update class
+            def __init__(self, *a, **k):
+                pass
+        real = old_storage.Store
+        old_storage.Store = OldStore
+        try:
+            fake = self.run_app({"page": "Overview", "scenario": "C"})
+        finally:
+            old_storage.Store = real
+        self.assertEqual(self.errors(fake), [])
+        self.assertTrue(hasattr(sys.modules["plantproof.storage"].Store, "sync_demo_data"))
+
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})
         warnings = " ".join(str(c[1]) for c in fake.calls if c[0] == "warning")

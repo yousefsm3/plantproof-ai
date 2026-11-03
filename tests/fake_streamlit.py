@@ -98,8 +98,17 @@ class FakeStreamlit:
             return func
         return lambda f: f
 
-    cache_data = _cache
-    cache_resource = _cache
+    class _Cache:
+        def __call__(self, func=None, **kwargs):
+            if callable(func):
+                return func
+            return lambda f: f
+
+        def clear(self):
+            pass
+
+    cache_data = _Cache()
+    cache_resource = _Cache()
 
     # ---------- control flow
     def stop(self):

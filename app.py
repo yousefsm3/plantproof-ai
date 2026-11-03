@@ -18,6 +18,29 @@ from pathlib import Path
 import plotly.graph_objects as go
 import streamlit as st
 
+
+def _drop_stale_plantproof_modules() -> None:
+    """After a redeploy, Streamlit re-runs app.py but can keep old plantproof modules in
+    memory, so new functions look missing. If the package source changed, forget the old
+    modules and caches so the imports below load the new code."""
+    import hashlib
+    import sys
+
+    src = Path(__file__).parent / "plantproof"
+    digest = hashlib.sha256(b"".join(f.read_bytes() for f in sorted(src.glob("*.py")))).hexdigest()
+    pkg = sys.modules.get("plantproof")
+    if pkg is not None and getattr(pkg, "_source_digest", None) == digest:
+        return
+    for name in [m for m in sys.modules if m == "plantproof" or m.startswith("plantproof.")]:
+        del sys.modules[name]
+    st.cache_resource.clear()
+    st.cache_data.clear()
+    import plantproof
+    plantproof._source_digest = digest
+
+
+_drop_stale_plantproof_modules()
+
 from plantproof import __version__, advisor, blind_test, cost_model, handover, whatif
 from plantproof.domain import (SOURCE_TYPES, AnalysisResult, ConfigError, EngineConfig,
                                Finding, Observation, load_engine_config,

@@ -214,3 +214,13 @@ def make_plotly_modules() -> dict[str, types.ModuleType]:
         setattr(go, cls, _Stub)
     plotly.graph_objects = go
     return {"plotly": plotly, "plotly.graph_objects": go}
+
+
+def make_components_modules(fake) -> dict[str, types.ModuleType]:
+    """streamlit.components.v1 with an html() that records the call on the fake."""
+    comp = types.ModuleType("streamlit.components")
+    v1 = types.ModuleType("streamlit.components.v1")
+    v1.html = lambda body, **kw: fake._log("components.html", len(body))
+    comp.v1 = v1
+    fake.components = comp
+    return {"streamlit.components": comp, "streamlit.components.v1": v1}

@@ -35,6 +35,9 @@ When the scenario files change, the app reloads them on start and keeps saved hi
 | Page | What it does |
 |---|---|
 | Overview | KPIs, sensor trends with alarm limits, hypothesis confidence, open contradictions and evidence gaps |
+| AI Early Warning | Unsupervised machine-learning model (learned baseline + Mahalanobis anomaly score, numpy only). Learns normal behaviour from the first 18 hours and flags unusual hours: 12 h before the first alarm in Scenario A and 19 h in Scenario C. In Scenario B it shows that only one sensor moved, which points to the instrument |
+| AI Fact Check | Paste a report from any AI tool or person. Each sentence is checked against the records: supported (green, with record IDs), contradicted (red) or no evidence (grey). English and Arabic. Example drafts contain planted mistakes |
+| Live Sensor | Turns a phone into a vibration sensor (browser motion API). A small model learns "normal" for 10 seconds and flags anomalies live. Runs entirely in the browser; Demo mode simulates a machine when the sensor is blocked |
 | Evidence | Hypothesis ranking with the full scoring working, supporting/refuting/missing evidence, contradiction details, record tracing, raw records, save investigation |
 | Advisor | Rule-based engineering assistant. Ask free-form questions in English or Arabic ("is the oil OK?", "when was the last maintenance?", "why not a seal failure?"): every answer is built from the scenario's records and cites their IDs, and it says so when the records do not answer the question. Also: what to check first (ranked by simulated impact), restart-readiness checklist, action plan. No external AI |
 | What If | Presets or custom changes (ignore record types, override a value, scale a sensor, add hypothetical evidence). Runs on a copy; a fingerprint check proves the originals are unchanged |
@@ -77,6 +80,8 @@ plantproof/
   handover.py               shift handover summaries
   advisor.py                rule-based engineering advisor
   advisor_qa.py             free-form questions answered from records, with IDs
+  early_warning.py          unsupervised anomaly model (learned baseline)
+  fact_check.py             sentence-by-sentence verification of AI-written reports
   translations.py           Arabic glosses for the UI
   storage.py                SQLite storage, history export/import
 config/                     hypotheses.json, cost_assumptions.json

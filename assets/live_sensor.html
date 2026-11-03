@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --petrol:#145A55; --ink:#0B2E2D; --copper:#C8844A; --alert:#B42318; --ok:#1E7B4F; --line:#9DB5B0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Source Sans Pro", system-ui, -apple-system, sans-serif; color:var(--ink); background:transparent; }
+  .card { background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:14px 16px;
+          box-shadow:0 4px 14px rgba(11,46,45,.16); }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  button { font:inherit; font-weight:600; border-radius:8px; padding:9px 14px; cursor:pointer;
+           border:1.5px solid var(--petrol); background:#fff; color:var(--ink); }
+  button.primary { background:var(--petrol); color:#fff; border-color:var(--ink); }
+  button.fault { border-color:var(--copper); }
+  button:disabled { opacity:.45; cursor:default; }
+  .ar { color:#6B7B7A; font-size:.8em; font-weight:400; margin-inline-start:.35em; }
+  .status { margin-top:12px; padding:10px 12px; border-radius:10px; font-weight:600; border:1.5px solid; }
+  .s-idle { background:#F1F5F4; border-color:#C9D6D3; }
+  .s-learn { background:#FCF1E6; border-color:#EED3B8; }
+  .s-ok { background:#E8F4EE; border-color:#A9D3BD; color:var(--ok); }
+  .s-bad { background:#FDEDEB; border-color:#F3C4BD; color:var(--alert); }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+  .stat { background:#F6FAF9; border:1px solid #D3E5E1; border-radius:8px; padding:8px 10px; }
+  .stat b { display:block; font-size:1.25rem; }
+  .stat span { font-size:.8rem; color:#4D605E; }
+  canvas { width:100%; height:220px; margin-top:12px; border:1px solid #D3E5E1; border-radius:8px; background:#fff; }
+  .note { font-size:.82rem; color:#4D605E; margin-top:8px; line-height:1.5; }
+  .rtl { direction:rtl; text-align:right; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row">
+    <button class="primary" id="btnPhone">Use this phone's sensor <span class="ar" style="color:#DDEFE9">استخدم حساس الجوال</span></button>
+    <button id="btnDemo">Demo mode <span class="ar">وضع تجريبي</span></button>
+    <button class="fault" id="btnFault" disabled>Add a fault (demo) <span class="ar">أضف عطلًا</span></button>
+    <button id="btnReset" disabled>Restart <span class="ar">إعادة</span></button>
+  </div>
+  <div id="status" class="status s-idle">Press a button to start. <span class="ar">اضغط زرًا للبدء.</span></div>
+  <div class="stats">
+    <div class="stat"><span>Vibration (RMS, m/s²) · الاهتزاز</span><b id="vRms">–</b></div>
+    <div class="stat"><span>Anomaly score · درجة الشذوذ</span><b id="vScore">–</b></div>
+    <div class="stat"><span>Learned threshold · الحد المتعلَّم</span><b id="vThr">–</b></div>
+  </div>
+  <canvas id="chart" width="900" height="220"></canvas>
+  <div class="note">
+    How it works: for the first 10 seconds the model learns what "normal" vibration looks like on
+    this machine (level and peaks). After that it scores every half-second against what it learned
+    and raises an alert when three windows in a row are unusual. Nothing is sent anywhere: it runs
+    in your browser.
+    <div class="rtl">طريقة العمل: أول 10 ثوانٍ يتعلّم النموذج الاهتزاز الطبيعي لهذه الآلة، وبعدها يقيّم كل نصف ثانية
+    وينبّه إذا تكرر سلوك غير طبيعي ثلاث مرات متتالية. لا تُرسل أي بيانات: كل شيء يعمل داخل متصفحك.</div>
+  </div>
+</div>
+<script>
+(() => {
+  const LEARN_S = 10, WIN_MS = 500, KEEP = 120, MARGIN = 1.6, RUN = 3;
+  const $ = id => document.getElementById(id);
+  const ctx = $("chart").getContext("2d");
+  let mode = null, samples = [], points = [], train = [], model = null, streak = 0, alerted = false;
+  let started = 0, timer = null, demoT = 0, fault = 0, gotMotion = false, lastG = null;
+
+  function setStatus(cls, en, ar) {
+    $("status").className = "status " + cls;
+    $("status").innerHTML = en + ' <span class="ar">' + ar + "</span>";
+  }
+  function onMotion(e) {
+    let a = e.acceleration;
+    let x, y, z;
+    if (a && a.x != null) { x = a.x; y = a.y; z = a.z; }
+    else {                       // high-pass the gravity vector out
+      const g = e.accelerationIncludingGravity; if (!g || g.x == null) return;
+      if (!lastG) lastG = { x: g.x, y: g.y, z: g.z };
+      lastG = { x: .9 * lastG.x + .1 * g.x, y: .9 * lastG.y + .1 * g.y, z: .9 * lastG.z + .1 * g.z };
+      x = g.x - lastG.x; y = g.y - lastG.y; z = g.z - lastG.z;
+    }
+    gotMotion = true;
+    samples.push(Math.sqrt(x * x + y * y + z * z));
+  }
+  function demoSamples() {      // a running motor: steady hum + noise, plus a growing fault
+    for (let i = 0; i < 30; i++) {
+      demoT += 1 / 60;
+      const hum = 0.35 * Math.sin(2 * Math.PI * 25 * demoT) + 0.12 * (Math.random() - .5);
+      const f = fault * (0.5 + 0.9 * Math.abs(Math.sin(2 * Math.PI * 3 * demoT)));
+      samples.push(Math.abs(hum) + 0.2 + f * Math.random());
+    }
+  }
+  function features(win) {
+    const n = win.length; if (!n) return null;
+    const rms = Math.sqrt(win.reduce((s, v) => s + v * v, 0) / n);
+    const peak = win.reduce((m, v) => Math.max(m, v), 0);
+    return [rms, peak];
+  }
+  function fit(rows) {
+    const k = rows[0].length, mean = [], sd = [];
+    for (let j = 0; j < k; j++) {
+      const col = rows.map(r => r[j]); const m = col.reduce((s, v) => s + v, 0) / col.length;
+      const v = col.reduce((s, x) => s + (x - m) ** 2, 0) / Math.max(1, col.length - 1);
+      mean.push(m); sd.push(Math.max(Math.sqrt(v), 1e-3 + 0.05 * Math.abs(m)));
+    }
+    const score = r => Math.sqrt(r.reduce((s, x, j) => s + ((x - mean[j]) / sd[j]) ** 2, 0) / k);
+    const thr = Math.max(...rows.map(score)) * MARGIN;
+    return { score, thr };
+  }
+  function tick() {
+    if (mode === "demo") demoSamples();
+    const win = samples; samples = [];
+    const elapsed = (Date.now() - started) / 1000;
+    if (mode === "phone" && !gotMotion && elapsed > 3) {
+      setStatus("s-bad", "No sensor data. Open the app in Safari on an iPhone, allow motion access, or use Demo mode.",
+                "لا توجد بيانات من الحساس. افتح المنصة في سفاري على الآيفون واسمح بالوصول للحركة، أو استخدم الوضع التجريبي.");
+      return draw();
+    }
+    const f = features(win); if (!f) return draw();
+    $("vRms").textContent = f[0].toFixed(2);
+    if (!model) {
+      train.push(f);
+      setStatus("s-learn", `Learning normal behaviour… ${Math.max(0, LEARN_S - elapsed).toFixed(0)} s. Keep the machine running normally.`,
+                `يتعلّم السلوك الطبيعي… ${Math.max(0, LEARN_S - elapsed).toFixed(0)} ثانية. خلّ الآلة تشتغل بشكل طبيعي.`);
+      points.push({ rms: f[0], score: null });
+      if (elapsed >= LEARN_S && train.length >= 8) {
+        model = fit(train);
+        $("vThr").textContent = model.thr.toFixed(2);
+        if (mode === "demo") $("btnFault").disabled = false;
+      }
+    } else {
+      const s = model.score(f);
+      $("vScore").textContent = s.toFixed(2);
+      streak = s > model.thr ? streak + 1 : 0;
+      points.push({ rms: f[0], score: s });
+      if (streak >= RUN) {
+        alerted = true;
+        setStatus("s-bad", `Anomaly detected: vibration no longer matches the learned normal (score ${s.toFixed(1)} vs ${model.thr.toFixed(1)}).`,
+                  `تم اكتشاف سلوك غير طبيعي: الاهتزاز لم يعد يطابق الطبيعي الذي تعلّمه النموذج.`);
+      } else if (!alerted) {
+        setStatus("s-ok", "Model trained. Monitoring: behaviour is normal.", "تم التعلّم. المراقبة جارية: السلوك طبيعي.");
+      }
+    }
+    if (points.length > KEEP) points.shift();
+    draw();
+  }
+  function draw() {
+    const c = $("chart"), W = c.width, H = c.height; ctx.clearRect(0, 0, W, H);
+    const maxR = Math.max(0.5, ...points.map(p => p.rms)) * 1.15;
+    ctx.strokeStyle = "#E3ECEA"; ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 4); ctx.lineTo(W, H * i / 4); ctx.stroke(); }
+    const x = i => (i / (KEEP - 1)) * W, y = v => H - (v / maxR) * (H - 10) - 5;
+    ctx.lineWidth = 2.5; ctx.beginPath();
+    points.forEach((p, i) => {
+      ctx.strokeStyle = "#145A55"; i ? ctx.lineTo(x(i), y(p.rms)) : ctx.moveTo(x(i), y(p.rms));
+    });
+    ctx.stroke();
+    points.forEach((p, i) => {
+      if (model && p.score != null && p.score > model.thr) {
+        ctx.fillStyle = "#B42318"; ctx.beginPath(); ctx.arc(x(i), y(p.rms), 4, 0, 7); ctx.fill();
+      }
+    });
+    ctx.fillStyle = "#4D605E"; ctx.font = "13px system-ui";
+    ctx.fillText("Vibration RMS · الاهتزاز (red = anomaly · أحمر = شذوذ)", 8, 16);
+  }
+  async function start(m) {
+    stop(); mode = m; samples = []; points = []; train = []; model = null; streak = 0; alerted = false;
+    fault = 0; gotMotion = false; lastG = null; started = Date.now();
+    $("vRms").textContent = $("vScore").textContent = $("vThr").textContent = "–";
+    $("btnReset").disabled = false; $("btnFault").disabled = true;
+    if (m === "phone") {
+      try {
+        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+          const r = await DeviceMotionEvent.requestPermission();
+          if (r !== "granted") {
+            setStatus("s-bad", "Motion access was not allowed. Use Demo mode, or allow it and try again.",
+                      "لم يتم السماح بالوصول للحركة. استخدم الوضع التجريبي أو اسمح وجرّب مرة ثانية.");
+            return;
+          }
+        }
+      } catch (err) {
+        setStatus("s-bad", "This browser blocked the motion sensor here. Use Demo mode.",
+                  "المتصفح منع الوصول للحساس هنا. استخدم الوضع التجريبي.");
+        return;
+      }
+      window.addEventListener("devicemotion", onMotion);
+      setStatus("s-learn", "Waiting for the motion sensor… Put the phone flat on the running machine.",
+                "بانتظار الحساس… حط الجوال على الآلة وهي شغالة.");
+    }
+    timer = setInterval(tick, WIN_MS);
+  }
+  function stop() { if (timer) clearInterval(timer); timer = null; window.removeEventListener("devicemotion", onMotion); }
+  $("btnPhone").onclick = () => start("phone");
+  $("btnDemo").onclick = () => start("demo");
+  $("btnReset").onclick = () => start(mode || "demo");
+  $("btnFault").onclick = () => { fault = Math.min(fault + 0.35, 1.4); };
+  draw();
+})();
+</script>
+</body>
+</html>

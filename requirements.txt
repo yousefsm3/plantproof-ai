@@ -1,3 +1,4 @@
 # Python 3.12 (select it in Streamlit Community Cloud > Advanced settings)
 streamlit==1.65.0
 plotly==6.9.0
+numpy>=1.26,<3

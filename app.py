@@ -41,7 +41,8 @@ def _drop_stale_plantproof_modules() -> None:
 
 _drop_stale_plantproof_modules()
 
-from plantproof import __version__, advisor, blind_test, cost_model, handover, whatif
+from plantproof import (__version__, advisor, blind_test, cost_model, early_warning, fact_check,
+                        handover, whatif)
 from plantproof.domain import (SOURCE_TYPES, AnalysisResult, ConfigError, EngineConfig,
                                Finding, Observation, load_engine_config,
                                load_scenario_index)
@@ -52,13 +53,16 @@ from plantproof.translations import ar, bi, bi_plain
 st.set_page_config(page_title="PlantProof AI", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="expanded")
 
-PAGES = ("Overview", "Evidence", "What If", "Blind Test", "Cost", "History", "Handover")
+PAGES = ("Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
+         "Blind Test", "Cost", "History", "Handover")
 ADVISOR = "Advisor"   # opened from its own highlighted button, not from the page list
 PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_search:",
               "Advisor": ":material/psychology:",
               "What If": ":material/science:", "Blind Test": ":material/fact_check:",
               "Cost": ":material/payments:", "History": ":material/history:",
-              "Handover": ":material/sync_alt:"}
+              "Handover": ":material/sync_alt:", "AI Early Warning": ":material/monitor_heart:",
+              "AI Fact Check": ":material/verified:", "Live Sensor": ":material/sensors:"}
+LINKEDIN_URL = ""   # Yaqen AI company page; the LinkedIn button shows once this is set
 PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing temp (°C)",
                 "seal_pot_level_pct": "Seal pot level (%)",
                 "suction_pressure_bar": "Suction pressure (bar)",
@@ -320,6 +324,18 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
 /* hide the GitHub / Fork / edit icons Streamlit Cloud adds to the top bar */
 [data-testid="stToolbarActions"], .stAppDeployButton, [data-testid="stAppDeployButton"] {{
   display: none !important; }}
+[class*="st-key-pp_fc_ok"] {{ border-left: 6px solid #1E7B4F !important; background: #F1FAF5 !important; }}
+[class*="st-key-pp_fc_bad"] {{ border-left: 6px solid {ALERT} !important; background: #FDEDEB !important; }}
+[class*="st-key-pp_fc_none"] {{ border-left: 6px solid #8A9B97 !important; background: #F4F6F6 !important; }}
+.pp-yaqen {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 28px 0 8px;
+  padding: 10px 14px; background: #FFFFFF; border: 1.5px solid #9DB5B0; border-radius: 12px;
+  width: fit-content; box-shadow: 0 2px 8px rgba(11,46,45,0.12); }}
+.pp-yaqen img {{ width: 28px; height: 28px; border-radius: 7px; }}
+.pp-yaqen span {{ font-size: .92rem; color: #0B2E2D; }}
+.pp-yaqen em {{ font-style: normal; color: #6B7B7A; font-size: .82rem; }}
+.pp-li {{ background: #0A66C2; color: #FFFFFF !important; text-decoration: none !important;
+  font-weight: 700; font-size: .85rem; padding: 5px 12px; border-radius: 999px; }}
+.pp-li:hover {{ filter: brightness(1.1); }}
 .pp-name {{ font-size: 1.25rem; font-weight: 700; color: #0B2E2D; letter-spacing: .2px; }}
 .pp-name span {{ color: {COPPER}; }}
 </style>
@@ -424,6 +440,13 @@ def page_overview(ctx: Ctx) -> None:
     st.caption(f"{bi(ctx.meta['title'])} · {bi('analysis window')} "
                f"{r.window_start.replace('T', ' ')} → {r.window_end.replace('T', ' ')}")
     st.info(with_ar(ctx.meta["summary"]))
+    ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
+    if ew and ew.warned_before_alarm:
+        h = f"{ew.lead_hours:g}"
+        st.success(f"**AI early warning:** the model flagged unusual behaviour **{h} hours** before "
+                   f"the first alarm. See the AI Early Warning page.  \n"
+                   + gray(f"إنذار مبكر بالذكاء الاصطناعي: النموذج لاحظ سلوكًا غير طبيعي قبل أول إنذار بـ {h} ساعة."),
+                   icon=":material/monitor_heart:")
 
     c1, c2, c3, c4 = st.columns(4)
     with c1.container(key="pp_kpi_records"):
@@ -661,6 +684,177 @@ def page_advisor(ctx: Ctx) -> None:
     if st.button(bi("Clear conversation"), key="adv_clear"):
         st.session_state.pop("advisor_chat", None)
         st.rerun()
+
+
+# ------------------------------------------------------------- AI early warning
+def ew_chart(ew: early_warning.EarlyWarning) -> go.Figure:
+    xs = [h.timestamp for h in ew.hours]
+    fig = go.Figure(go.Scatter(
+        x=xs, y=[h.score for h in ew.hours], mode="lines+markers", line=dict(color=PETROL, width=2.5),
+        marker=dict(size=5, color=[ALERT if h.score > ew.threshold else PETROL for h in ew.hours]),
+        name=bi_plain("Anomaly score"), hovertemplate="%{x}<br>%{y}<extra></extra>"))
+    fig.add_hline(y=ew.threshold, line_dash="dash", line_color=COPPER,
+                  annotation_text=f"Learned threshold · الحد المتعلَّم {ew.threshold:g}",
+                  annotation_position="top left")
+    fig.add_vrect(x0=xs[0], x1=xs[ew.train_hours - 1], fillcolor="#DDEFE9", opacity=0.5,
+                  line_width=0)
+    fig.add_annotation(x=xs[0], y=1, yref="paper", showarrow=False, xanchor="left",
+                       text="Learning normal · تعلّم الطبيعي", font=dict(color=PETROL))
+    if ew.first_warning:
+        fig.add_vline(x=ew.first_warning.timestamp, line_color=COPPER, line_width=2)
+        fig.add_annotation(x=ew.first_warning.timestamp, y=1, yref="paper", showarrow=False,
+                           text="AI warning · إنذار مبكر", xanchor="right", font=dict(color=COPPER))
+    if ew.first_alarm:
+        fig.add_vline(x=ew.first_alarm[0], line_color=ALERT, line_width=2, line_dash="dot")
+        fig.add_annotation(x=ew.first_alarm[0], y=0.9, yref="paper", showarrow=False,
+                           text="First alarm · أول إنذار", xanchor="left", font=dict(color=ALERT))
+    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", height=360,
+                      margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
+                      yaxis_title=bi_plain("Anomaly score"))
+    return fig
+
+
+def _driver_text(drivers) -> tuple[str, str]:
+    en, ar_ = [], []
+    for p, z in drivers:
+        lab = PARAM_LABELS.get(p, p).split(" (")[0]
+        word, word_ar = ("above", "أعلى") if z > 0 else ("below", "أقل")
+        en.append(f"{lab} {abs(z):g}× its normal spread {word} normal")
+        ar_.append(f"{ar(PARAM_LABELS.get(p, p)) or lab} {word_ar} من الطبيعي بـ {abs(z):g} ضعف تذبذبه المعتاد")
+    return "; ".join(en), "، ".join(ar_)
+
+
+def page_early_warning(ctx: Ctx) -> None:
+    page_header(PAGE_ICONS["AI Early Warning"], "AI Early Warning",
+                "A machine-learning model learns how this pump normally behaves, then flags "
+                "unusual hours before any alarm limit is crossed. It runs inside the app: no "
+                "external AI service.")
+    ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
+    if ew is None:
+        st.warning(with_ar("Not enough hourly sensor data to train the model."))
+        return
+    fw, fa = ew.first_warning, ew.first_alarm
+    c1, c2, c3 = st.columns(3)
+    with c1.container(key="pp_kpi_lead"):
+        st.metric(bi("First AI warning"), fw.timestamp.replace("T", " ")[5:16] if fw else "—")
+    with c2.container(key="pp_kpi_contra"):
+        st.metric(bi("First alarm"), fa[0].replace("T", " ")[5:16] if fa else "—")
+    with c3.container(key="pp_kpi_records"):
+        lead = ew.lead_hours
+        st.metric(bi("Warning lead time"),
+                  f"{lead:g} h" if lead and lead > 0 else ("Same hour" if lead == 0 else "—"))
+    if ew.warned_before_alarm:
+        st.success(f"The model raised a warning **{ew.lead_hours:g} hours before** the first alarm "
+                   f"({fa[2]}).  \n" + gray(f"النموذج نبّه قبل أول إنذار بـ {ew.lead_hours:g} ساعة."))
+    st.plotly_chart(ew_chart(ew), key="ew_chart")
+
+    if fw:
+        en, ar_ = _driver_text(fw.drivers)
+        st.subheader(bi("What the model noticed first"))
+        st.markdown(f"**{fw.timestamp.replace('T', ' ')[:16]}**: {en}.  \n{gray(ar_)}")
+        st.caption(f"{bi('Source records')}: {ids_text(fw.record_ids)}")
+        flagged = [h for h in ew.hours if h.flagged]
+        movers = {p for h in flagged for p, _z in h.drivers}
+        if len(movers) == 1 and fw and (fa is None or ew.lead_hours == 0):
+            st.info(with_ar("Only one sensor changed while every other sensor stayed normal. A real "
+                            "mechanical fault usually moves more than one sensor, so this pattern "
+                            "points to checking the instrument itself."))
+        with st.expander(bi("Flagged hours")):
+            st.dataframe([{"Time · الوقت": h.timestamp.replace("T", " ")[:16],
+                           "Score · الدرجة": h.score,
+                           "Main drivers · الأسباب": ", ".join(f"{p} ({z:+g})" for p, z in h.drivers),
+                           "Records · السجلات": ids_text(h.record_ids, 4)} for h in flagged],
+                         hide_index=True)
+    else:
+        st.info(with_ar("No unusual behaviour detected in this window."))
+
+    with st.expander(bi("How the model works")):
+        st.markdown(with_ar(
+            "1. It learns the normal level and spread of every sensor, and how the sensors move "
+            "together, from the first 18 hours.") + "  \n" + with_ar(
+            "2. Each hour gets an anomaly score: how far the whole set of readings is from what it "
+            "learned (Mahalanobis distance).") + "  \n" + with_ar(
+            "3. The alert threshold is learned from the healthy hours, with a safety margin. An "
+            "hour is flagged when it and the next hour are above it.") + "  \n" + with_ar(
+            "4. The sensors that drive the score are shown with their record IDs, so every warning "
+            "can be checked."))
+        st.dataframe([{"Sensor · الحساس": bi_plain(PARAM_LABELS.get(p, p)), "Normal mean · المتوسط": m,
+                       "Normal spread · التذبذب": sd} for p, (m, sd) in ew.baseline.items()],
+                     hide_index=True)
+
+
+# ---------------------------------------------------------------- AI fact check
+VERDICT_STYLE = {
+    fact_check.SUPPORTED: (":material/check_circle:", "Supported by records", "pp_fc_ok"),
+    fact_check.CONTRADICTED: (":material/cancel:", "Contradicted by records", "pp_fc_bad"),
+    fact_check.NO_EVIDENCE: (":material/help:", "No evidence in the records", "pp_fc_none"),
+}
+
+
+def page_fact_check(ctx: Ctx) -> None:
+    page_header(PAGE_ICONS["AI Fact Check"], "AI Fact Check",
+                "Paste a report written by any AI tool (or a person). Every sentence is checked "
+                "against this investigation's records: green is backed by a record, red is "
+                "contradicted, grey has no evidence and should not be trusted.")
+    lang = st.radio(bi("Example draft"), ["Arabic", "English"], horizontal=True, key="fc_lang",
+                    format_func=bi_plain)
+    drafts = fact_check.SAMPLE_DRAFTS_AR if lang == "Arabic" else fact_check.SAMPLE_DRAFTS
+    sample = drafts.get(ctx.sid, "")
+    key = f"fc_text_{ctx.sid}_{lang}"
+    text = st.text_area(bi("Report to check"), value=sample, height=170, key=key)
+    if not st.button(f":material/fact_check: {bi('Check every sentence')}", type="primary",
+                     key="fc_run") and not st.session_state.get("fc_done"):
+        st.caption(with_ar("The example is written like a confident AI assistant, with some "
+                           "mistakes hidden in it."))
+        return
+    st.session_state["fc_done"] = True
+    checks = fact_check.check(text, ctx.obs, ctx.result, ctx.cfg)
+    if not checks:
+        st.warning(with_ar("Nothing to check yet."))
+        return
+    n = fact_check.summary(checks)
+    c1, c2, c3 = st.columns(3)
+    with c1.container(key="pp_kpi_records"):
+        st.metric(bi("Supported by records"), n[fact_check.SUPPORTED])
+    with c2.container(key="pp_kpi_contra"):
+        st.metric(bi("Contradicted by records"), n[fact_check.CONTRADICTED])
+    with c3.container(key="pp_kpi_miss"):
+        st.metric(bi("No evidence in the records"), n[fact_check.NO_EVIDENCE])
+    for i, c in enumerate(checks):
+        icon, label, cls = VERDICT_STYLE[c.verdict]
+        with st.container(border=True, key=f"{cls}_{i}"):
+            st.markdown(f"{icon} **{bi(label)}**  \n> {c.sentence}")
+            for en, ar_ in c.reasons:
+                st.markdown(f"- {en}  \n  {gray(ar_)}")
+            if c.record_ids:
+                st.caption(f"{bi('Source records')}: {ids_text(c.record_ids, 6)}")
+
+
+# ------------------------------------------------------------------ live sensor
+def page_live_sensor(ctx: Ctx) -> None:
+    page_header(PAGE_ICONS["Live Sensor"], "Live Sensor",
+                "Turn a phone into a vibration sensor. Put it flat on a running machine (a fan or "
+                "a washing machine), let the model learn normal for 10 seconds, then change how "
+                "the machine runs and watch it detect the change.")
+    st.markdown(with_ar("Open this page on the phone itself, in Safari or Chrome. If the phone "
+                        "blocks the sensor here, Demo mode shows the same model on simulated "
+                        "data."))
+    import streamlit.components.v1 as components
+    components.html((ASSETS / "live_sensor.html").read_text(encoding="utf-8"), height=720,
+                    scrolling=True)
+
+
+# ------------------------------------------------------------------- branding
+def yaqen_footer() -> None:
+    logo = svg_data_uri("yaqen.svg")
+    link = ""
+    if LINKEDIN_URL:
+        link = (f'<a class="pp-li" href="{html.escape(LINKEDIN_URL)}" target="_blank" '
+                f'rel="noopener">LinkedIn</a>')
+    st.markdown(
+        f'<div class="pp-yaqen"><img src="{logo}" alt="Yaqen AI"/>'
+        f'<span>Managed by <b>Yaqen AI</b> <em>· بإدارة يقين للذكاء الاصطناعي</em></span>{link}</div>',
+        unsafe_allow_html=True)
 
 
 def _whatif_presets(sid: str) -> dict[str, list[whatif.WhatIfChange]]:
@@ -1110,7 +1304,9 @@ def main() -> None:
     {"Overview": page_overview, "Evidence": page_evidence, "Advisor": page_advisor,
      "What If": page_whatif,
      "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,
-     "Handover": page_handover}[page](ctx)
+     "Handover": page_handover, "AI Early Warning": page_early_warning,
+     "AI Fact Check": page_fact_check, "Live Sensor": page_live_sensor}[page](ctx)
+    yaqen_footer()
 
 
 main()

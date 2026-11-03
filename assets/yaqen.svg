@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Yaqen AI">
+  <rect width="400" height="400" rx="88" fill="#0B0F14"/>
+  <polyline points="112,148 186,222 292,104" fill="none" stroke="#F2F5F4" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="186" y1="222" x2="186" y2="310" stroke="#3DD6B0" stroke-width="38" stroke-linecap="round"/>
+</svg>

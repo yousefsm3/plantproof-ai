@@ -12,17 +12,19 @@ import unittest
 from pathlib import Path
 
 from tests.fake_streamlit import (FakeStreamlit, RerunSignal, SessionState,
-                                  make_plotly_modules)
+                                  make_components_modules, make_plotly_modules)
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
-PAGES = ("Overview", "Evidence", "What If", "Blind Test", "Cost", "History", "Handover")
+PAGES = ("Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
+         "Blind Test", "Cost", "History", "Handover")
 
 
 class AppSmokeTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         os.environ["PLANTPROOF_DB"] = str(Path(self.tmp.name) / "smoke.db")
-        self.saved = {k: sys.modules.get(k) for k in ("streamlit", "plotly", "plotly.graph_objects")}
+        self.saved = {k: sys.modules.get(k) for k in ("streamlit", "plotly", "plotly.graph_objects",
+                                              "streamlit.components", "streamlit.components.v1")}
 
     def tearDown(self):
         for k, v in self.saved.items():
@@ -44,6 +46,7 @@ class AppSmokeTest(unittest.TestCase):
         fake = FakeStreamlit(overrides, press_buttons=press, session=session)
         sys.modules["streamlit"] = fake
         sys.modules.update(make_plotly_modules())
+        sys.modules.update(make_components_modules(fake))
         try:
             runpy.run_path(str(APP), run_name="__main__")
         except RerunSignal:

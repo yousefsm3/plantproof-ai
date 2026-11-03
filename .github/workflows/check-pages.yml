@@ -1,0 +1,31 @@
+# On-demand check: opens every page of the live app and reports errors, with screenshots.
+name: Check app pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install headless browser
+        run: |
+          pip install playwright==1.48.0
+          python -m playwright install --with-deps chromium
+      - name: Open every page
+        env:
+          APP_URL: https://plantproof-ai.streamlit.app
+        run: python scripts/check_pages.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: page-shots
+          path: page-shots

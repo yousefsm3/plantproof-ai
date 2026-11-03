@@ -17,13 +17,26 @@ is a concept prototype for the energy sector and is not affiliated with or endor
 > public: it contains no credentials, API keys, passwords, personal data or secrets, and must
 > never contain any.
 
+## Data in each scenario
+
+Each synthetic scenario (A, B, C) covers 48 hours before a trip of pump P-301:
+
+- **Sensors** (hourly): vibration, bearing temperature, seal pot level, suction pressure,
+  discharge pressure, flow and motor current.
+- **Oil analysis**: iron, water, particle count (ISO code) and viscosity change.
+- **Maintenance history**: lubrication, bearing and seal replacements. Rules use the dates,
+  for example "lubrication overdue by more than 60 days" or "seal replaced within 30 days".
+- **Calibration, operator logs, inspections** (handheld vibration, seal leakage) and the trip event.
+
+When the scenario files change, the app reloads them on start and keeps saved history.
+
 ## Features
 
 | Page | What it does |
 |---|---|
 | Overview | KPIs, sensor trends with alarm limits, hypothesis confidence, open contradictions and evidence gaps |
 | Evidence | Hypothesis ranking with the full scoring working, supporting/refuting/missing evidence, contradiction details, record tracing, raw records, save investigation |
-| Advisor | Rule-based engineering assistant (English or Arabic questions): what to check first (ranked by simulated impact), restart-readiness checklist, why the leader leads, action plan. No external AI |
+| Advisor | Rule-based engineering assistant. Ask free-form questions in English or Arabic ("is the oil OK?", "when was the last maintenance?", "why not a seal failure?"): every answer is built from the scenario's records and cites their IDs, and it says so when the records do not answer the question. Also: what to check first (ranked by simulated impact), restart-readiness checklist, action plan. No external AI |
 | What If | Presets or custom changes (ignore record types, override a value, scale a sensor, add hypothetical evidence). Runs on a copy; a fingerprint check proves the originals are unchanged |
 | Blind Test | Scores the engine, or your own analysis, against separately stored reference answers (100-point scale) |
 | Cost | Low / base / high repair cost with visible formulas and editable assumptions, plus a confidence-weighted expected cost |
@@ -63,6 +76,7 @@ plantproof/
   cost_model.py             low/base/high cost simulator
   handover.py               shift handover summaries
   advisor.py                rule-based engineering advisor
+  advisor_qa.py             free-form questions answered from records, with IDs
   translations.py           Arabic glosses for the UI
   storage.py                SQLite storage, history export/import
 config/                     hypotheses.json, cost_assumptions.json
@@ -136,7 +150,7 @@ picker cannot upload folders. So create each folder first, then upload into it.
 
 ## Live demo script (about 4 minutes)
 
-1. **Overview, Scenario A.** "P-301 tripped. PlantProof read 202 records: two contradictions,
+1. **Overview, Scenario A.** "P-301 tripped. PlantProof read 349 records: two contradictions,
    two evidence gaps, and bearing wear leads at 81%." Point at the red markers on the
    vibration chart.
 2. **Evidence.** Open the bearing wear card: supporting rules, weights, and record IDs. Use
@@ -146,18 +160,22 @@ picker cannot upload folders. So create each folder first, then upload into it.
    green fingerprint check: the original data was never touched.
 4. **Switch to Scenario B.** Same trip, different story: the handheld reading disagrees with
    the online sensor and its calibration is two years old. Sensor fault now leads.
-5. **Blind Test.** Run it: 100/100 on both scenarios. Then score your own guess in the second
+5. **Scenario C.** A different trip: seal pot level low-low. Seal leakage at inspection,
+   water in the oil (900 ppm) and a seal replaced 20 days earlier point to mechanical seal
+   failure (90%), while an operator log saying "no leaks seen" is flagged as a contradiction.
+   Ask the Advisor "is the oil OK?" and show the cited lab record.
+6. **Blind Test.** Run it: 100/100 on all three scenarios. Then score your own guess in the second
    tab to show the scorer is fair.
-6. **Cost.** Sensor fault costs about £4.4k (base) against about £25k for bearing wear. That
+7. **Cost.** Sensor fault costs about £4.4k (base) against about £25k for bearing wear. That
    is why evidence matters before restart.
-7. **Handover.** Generate it, download the Markdown, save it. Finish on **History → Download
+8. **Handover.** Generate it, download the Markdown, save it. Finish on **History → Download
    history** and explain the storage warning.
 
 Open the app about 10 minutes before presenting: free apps sleep after a period without visits.
 
 ## Limitations
 
-- Rules are hand-written for one asset type (a centrifugal pump) and two synthetic scenarios.
+- Rules are hand-written for one asset type (a centrifugal pump) and three synthetic scenarios.
 - Contradiction detection covers "normal" claims against sensor alarms and cross-checked
   measurements; it does not interpret free text.
 - Cost figures are illustrative, not engineering estimates.

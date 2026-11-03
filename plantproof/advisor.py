@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable
 
 from .cost_model import estimate, format_money
-from .domain import AnalysisResult, EngineConfig, Observation
+from .domain import TIME_OPS, AnalysisResult, EngineConfig, Observation
 from .handover import build_handover
 from .evidence_engine import analyse
 from .translations import ar
@@ -66,6 +66,8 @@ def _candidate_values(config: EngineConfig, source_type: str, parameter: str) ->
         for rule in h.supports + h.refutes:
             for c in rule.conditions:
                 if c.source_type == source_type and c.parameter == parameter:
+                    if c.op in TIME_OPS:
+                        continue
                     t = c.threshold
                     if c.op in (">", ">="):
                         values.add(round(t * 1.3 if t > 0 else t + 1, 3))
@@ -423,8 +425,8 @@ def last_shift_summary(entry: dict[str, Any] | None, analysis: AnalysisResult) -
 # ------------------------------------------------------------------- routing
 INTENTS = {
     "summary": ("summary", "summarise", "summarize", "last shift", "previous shift",
-                "what happened", "ملخص", "لخص", "لخّص", "الشفت", "الوردية السابقة",
-                "آخر وردية", "اخر وردية", "وش صار", "ماذا حدث"),
+                "ملخص", "لخص", "لخّص", "الشفت", "الوردية السابقة",
+                "آخر وردية", "اخر وردية"),
     "handover": ("handover", "hand over", "next shift", "shift note", "وردية", "الوردية",
                  "تسليم", "سلم", "سلّم", "المناوب", "اللي بعدي", "الموظف"),
     "checks": ("first", "check", "next", "priority", "inspect", "test",
@@ -436,6 +438,13 @@ INTENTS = {
              "وش اسوي", "ماذا أفعل"),
 }
 
+EXAMPLES = (
+    ("Is the oil OK?", "هل الزيت سليم؟"),
+    ("When was the last maintenance?", "متى آخر صيانة؟"),
+    ("What happened before the trip?", "وش صار قبل التوقف؟"),
+    ("Why not a seal failure?", "ليش مو عطل مانع التسريب؟"),
+)
+
 SUGGESTED = (
     ("What should I check first?", "ماذا أفحص أولًا؟", "checks"),
     ("Is it safe to restart?", "هل إعادة التشغيل آمنة؟", "restart"),
@@ -445,10 +454,11 @@ SUGGESTED = (
 
 
 def detect_intent(question: str) -> str | None:
-    q = question.strip().lower()
-    if not q:
+    from .advisor_qa import _has, normalise
+    if not question.strip():
         return None
-    scores = {k: sum(1 for w in words if w in q) for k, words in INTENTS.items()}
+    q = normalise(question)
+    scores = {k: sum(1 for w in words if _has(q, [w])) for k, words in INTENTS.items()}
     # On a tie prefer the broader answer: a plan already includes the checks.
     order = ("summary", "handover", "plan", "restart", "explain", "checks")
     best = max(order, key=lambda k: (scores[k], -order.index(k)))
@@ -458,11 +468,15 @@ def detect_intent(question: str) -> str | None:
 def answer(question: str, observations, config: EngineConfig, analysis: AnalysisResult,
            costs: dict[str, Any], meta: dict[str, Any] | None = None,
            last_handover: dict[str, Any] | None = None) -> AdvisorAnswer:
+    from . import advisor_qa
     intent = detect_intent(question)
     if intent == "summary":
         return last_shift_summary(last_handover, analysis)
     if intent == "handover":
         return handover_note(question, config, analysis, meta or {}, costs)
+    specific = advisor_qa.route(question, observations, config, analysis, costs)
+    if specific is not None:
+        return specific
     if intent == "checks":
         return _checks_answer(observations, config, analysis)
     if intent == "restart":
@@ -471,14 +485,24 @@ def answer(question: str, observations, config: EngineConfig, analysis: Analysis
         return explain_leader(analysis, config)
     if intent == "plan":
         return action_plan(observations, config, analysis, costs)
+    found = advisor_qa.search(question, observations, config, analysis)
+    if found is not None:
+        return found
     return AdvisorAnswer(
         "help", "I can answer these questions", "أستطيع الإجابة عن هذه الأسئلة",
         [AdvisorItem(en, ar_, status="info") for en, ar_, _ in SUGGESTED]
+        + [AdvisorItem("Ask about anything in the records: a sensor, the oil analysis, "
+                       "maintenance, a hypothesis or a record ID (e.g. \"is the oil ok?\", "
+                       "\"why not seal failure?\", \"A-LAB-0001\")",
+                       "اسأل عن أي شيء في السجلات: حساس، أو تحليل الزيت، أو الصيانة، أو فرضية، "
+                       "أو رقم سجل (مثل «هل الزيت سليم؟»، «ليش مو عطل مانع التسريب؟»)",
+                       status="info")]
         + [AdvisorItem("Summarise the last shift: \"give me a summary of the last shift\"",
                        "لخّص الوردية الأخيرة: «عطني ملخص للشفت الأخير»", status="info")]
         + [AdvisorItem("Prepare a shift handover: write your note, e.g. "
                        "\"handover: sensor recalibrated, waiting for alignment check\"",
                        "جهّز تسليم وردية: اكتب ملاحظتك، مثل «تسليم: تمت معايرة الحساس، "
                        "بانتظار فحص المحاذاة»", status="info")],
-        "The advisor is rule-based: it only answers from this investigation's evidence.",
-        "المساعد مبني على القواعد: يجيب فقط من أدلة هذا التحقيق.")
+        "I couldn't find anything in this investigation's records that matches. "
+        "The advisor only answers from the evidence, so it does not guess.",
+        "لم أجد في سجلات هذا التحقيق ما يطابق سؤالك. المساعد يجيب فقط من الأدلة، فلا يخمّن.")

@@ -34,6 +34,16 @@ EVIDENCE_TEMPLATES: dict[str, dict[str, Any]] = {
                        "label": "New vibration sensor calibration certificate"},
     "discharge_pressure_bar": {"source_type": "sensor", "unit": "bar", "default": 2.5,
                                "label": "Discharge pressure reading (bar)"},
+    "suction_pressure_bar": {"source_type": "sensor", "unit": "bar", "default": 0.6,
+                             "label": "Suction pressure reading (bar)"},
+    "oil_water_ppm": {"source_type": "lab", "unit": "ppm", "default": 900.0,
+                      "label": "Oil analysis (water, ppm)"},
+    "oil_particle_iso": {"source_type": "lab", "unit": "ISO code", "default": 21.0,
+                         "label": "Oil analysis (particle count, ISO code)"},
+    "seal_leak_ml_min": {"source_type": "inspection", "unit": "ml/min", "default": 15.0,
+                         "label": "Seal leakage check (ml/min)"},
+    "lubrication": {"source_type": "maintenance", "unit": "", "default": None,
+                    "label": "Bearing lubrication done today"},
 }
 
 

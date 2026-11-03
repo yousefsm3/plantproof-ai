@@ -22,6 +22,9 @@ COST_PATH = CONFIG_DIR / "cost_assumptions.json"
 SCENARIO_INDEX_PATH = SCENARIO_DIR / "index.json"
 
 ALLOWED_OPS = (">", ">=", "<", "<=", "==")
+# Time-based ops for maintenance and other dated records. Threshold is in days,
+# measured back from the end of the analysis window (normally the trip).
+TIME_OPS = ("within_days", "overdue_days")
 SOURCE_TYPES = ("sensor", "operator_log", "inspection", "lab", "calibration",
                 "maintenance", "event")
 
@@ -257,6 +260,10 @@ class Condition:
         return f"{self.source_type}:{self.parameter}"
 
     def describe(self) -> str:
+        if self.op == "within_days":
+            return f"{self.parameter} done within {self.threshold:g} days"
+        if self.op == "overdue_days":
+            return f"last {self.parameter} more than {self.threshold:g} days ago"
         return f"{self.parameter} {self.op} {self.threshold:g}"
 
 
@@ -345,8 +352,8 @@ def _parse_condition(raw: dict[str, Any], where: str) -> Condition:
     for k in ("source_type", "parameter", "op", "threshold"):
         if k not in raw:
             raise ConfigError(f"{where}: condition missing '{k}'")
-    if raw["op"] not in ALLOWED_OPS:
-        raise ConfigError(f"{where}: op '{raw['op']}' not in {ALLOWED_OPS}")
+    if raw["op"] not in ALLOWED_OPS + TIME_OPS:
+        raise ConfigError(f"{where}: op '{raw['op']}' not in {ALLOWED_OPS + TIME_OPS}")
     if raw["source_type"] not in SOURCE_TYPES:
         raise ConfigError(f"{where}: unknown source_type '{raw['source_type']}'")
     return Condition(raw["source_type"], raw["parameter"], raw["op"], float(raw["threshold"]))
@@ -366,6 +373,8 @@ def _parse_rule(raw: dict[str, Any], where: str) -> Rule:
         conds = (_parse_condition(raw, where),)
     if not conds:
         raise ConfigError(f"{where}: rule has no conditions")
+    if any(c.op in TIME_OPS for c in conds) and (len(conds) > 1 or mode != "any"):
+        raise ConfigError(f"{where}: time-based ops need a single condition in mode 'any'")
     if mode == "all" and len(conds) > 1:
         raise ConfigError(f"{where}: mode 'all' supports a single condition only")
     return Rule(label, weight, conds, mode, float(raw.get("window_h", 1.0)))

@@ -13,7 +13,7 @@ class BlindTestTests(unittest.TestCase):
     cfg = load_engine_config()
 
     def test_engine_scores_on_both_scenarios(self):
-        for sid in ("A", "B"):
+        for sid in ("A", "B", "C"):
             res = analyse(read_observations_csv(SCENARIO_DIR / f"scenario_{sid}.csv"), self.cfg)
             score = bt.score(bt.submission_from_analysis(res), bt.load_reference(sid))
             self.assertEqual(score.total, 100.0, sid)

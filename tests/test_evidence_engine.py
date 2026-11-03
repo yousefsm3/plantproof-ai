@@ -19,11 +19,33 @@ class EngineTests(unittest.TestCase):
     def setUpClass(cls):
         cls.cfg = load_engine_config()
         cls.a, cls.b = analyse(load("A"), cls.cfg), analyse(load("B"), cls.cfg)
+        cls.c = analyse(load("C"), cls.cfg)
 
     def test_leading_hypotheses(self):
         self.assertEqual(self.a.top.hypothesis_id, "bearing_wear")
         self.assertEqual(self.a.top.confidence_label, "High")
         self.assertEqual(self.b.top.hypothesis_id, "sensor_fault")
+
+    def test_seal_failure_scenario(self):
+        top = self.c.top
+        self.assertEqual(top.hypothesis_id, "seal_failure")
+        self.assertEqual(top.confidence_label, "High")
+        self.assertEqual({c.key for c in self.c.contradictions}, {"C-OPS-0004"})
+        labels = {f.title for f in top.supporting}
+        self.assertIn("Water in bearing oil", labels)
+        self.assertIn("Seal replaced within the last 30 days", labels)
+        # A normal handheld reading alone must not point to a faulty sensor.
+        self.assertEqual(self.c.assessment("sensor_fault").confidence, 0.0)
+
+    def test_maintenance_and_full_oil_rules(self):
+        bw = self.a.assessment("bearing_wear")
+        labels = {f.title for f in bw.supporting}
+        self.assertIn("Bearing lubrication overdue", labels)
+        self.assertIn("High particle contamination in oil", labels)
+        overdue = next(f for f in bw.supporting if f.title == "Bearing lubrication overdue")
+        self.assertEqual(overdue.record_ids, ("A-MNT-0001",))
+        refuted = {f.title for f in self.b.assessment("bearing_wear").refuting}
+        self.assertIn("Oil cleanliness normal", refuted)
 
     def test_contradictions_detected(self):
         self.assertEqual({c.key for c in self.a.contradictions}, {"A-OPS-0004", "A-INS-0002"})
@@ -38,7 +60,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(stale[0].record_ids, ("B-CAL-0001",))
 
     def test_every_finding_traces_to_real_records(self):
-        for sid, res in (("A", self.a), ("B", self.b)):
+        for sid, res in (("A", self.a), ("B", self.b), ("C", self.c)):
             ids = {o.record_id for o in load(sid)}
             for f in res.all_findings():
                 self.assertTrue(set(f.record_ids) <= ids, f.finding_id)
@@ -56,7 +78,7 @@ class EngineTests(unittest.TestCase):
 
     def test_confidence_bounds_and_ranks(self):
         for res in (self.a, self.b):
-            self.assertEqual([x.rank for x in res.assessments], [1, 2, 3, 4])
+            self.assertEqual([x.rank for x in res.assessments], [1, 2, 3, 4, 5])
             for x in res.assessments:
                 self.assertGreaterEqual(x.confidence, 0)
                 self.assertLessEqual(x.confidence, 1)

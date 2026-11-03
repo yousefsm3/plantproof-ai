@@ -15,7 +15,7 @@ class DomainTests(unittest.TestCase):
     def test_config_loads(self):
         cfg = load_engine_config()
         self.assertEqual({h.id for h in cfg.hypotheses},
-                         {"bearing_wear", "sensor_fault", "cavitation", "misalignment"})
+                         {"bearing_wear", "sensor_fault", "seal_failure", "cavitation", "misalignment"})
         self.assertIn("vibration_mm_s", cfg.limits)
 
     def test_invalid_config_rejected(self):
@@ -54,6 +54,14 @@ class DomainTests(unittest.TestCase):
             ids = [o.record_id for o in obs]
             self.assertEqual(len(ids), len(set(ids)))
             self.assertTrue(all(o.scenario_id == meta["id"] for o in obs))
+
+    def test_time_ops_validated(self):
+        raw = json.loads(HYPOTHESES_PATH.read_text(encoding="utf-8"))
+        rule = {"label": "x", "weight": 1, "mode": "all", "source_type": "maintenance",
+                "parameter": "lubrication", "op": "within_days", "threshold": 5}
+        raw["hypotheses"][0]["supports"].append(rule)
+        with self.assertRaises(ConfigError):
+            parse_engine_config(raw)
 
     def test_bad_source_type_rejected(self):
         row = data_gen.generate_scenario("A")[0].to_dict() | {"source_type": "rumour"}

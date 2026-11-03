@@ -35,6 +35,13 @@ SCENARIOS = {
         "summary": ("Pump P-301 tripped on a high vibration alarm at 23:10 on 20 Oct. "
                     "Line 3 stopped. Investigate the cause before restart."),
     },
+    "C": {
+        "seed": 303,
+        "start": datetime(2026, 10, 26, 0, 0),
+        "title": "Scenario C - P-301 trip, 27 Oct 2026",
+        "summary": ("Pump P-301 tripped on a seal pot low-low level alarm at 23:10 on 27 Oct. "
+                    "Line 3 stopped. Investigate the cause before restart."),
+    },
 }
 
 SENSORS = (
@@ -42,6 +49,13 @@ SENSORS = (
     ("bearing_temp_c", "°C"),
     ("discharge_pressure_bar", "bar"),
     ("motor_current_a", "A"),
+)
+# Added in v1.1. Generated from a separate random stream and numbered after the
+# original sensors, so the original records keep their IDs and values.
+EXTRA_SENSORS = (
+    ("suction_pressure_bar", "bar"),
+    ("flow_m3h", "m³/h"),
+    ("seal_pot_level_pct", "%"),
 )
 
 
@@ -56,13 +70,28 @@ def _sensor_values(sid: str, h: int, rnd: random.Random) -> dict[str, float]:
         temp = 61.0 + u(-0.8, 0.8) + max(0, h - 28) * 1.45
         pres = 4.55 + u(-0.12, 0.12)
         cur = 42.0 + u(-0.6, 0.6) + max(0, h - 34) * 0.15
-    else:            # step change in vibration only (faulty transmitter)
+    elif sid == "B":  # step change in vibration only (faulty transmitter)
         vib = (2.9 + u(-0.2, 0.2)) if h < 30 else (8.4 + u(-0.5, 0.6))
         temp = 62.5 + u(-0.8, 0.8)
         pres = 4.5 + u(-0.12, 0.12)
         cur = 41.8 + u(-0.6, 0.6)
+    else:            # C: seal leak - mechanical readings stay mostly normal
+        vib = 3.1 + u(-0.2, 0.2) + max(0, h - 34) * 0.1
+        temp = 62.0 + u(-0.8, 0.8) + max(0, h - 30) * 0.6
+        pres = 4.5 + u(-0.12, 0.12)
+        cur = 42.0 + u(-0.6, 0.6)
     return {"vibration_mm_s": vib, "bearing_temp_c": temp,
             "discharge_pressure_bar": pres, "motor_current_a": cur}
+
+
+def _extra_values(sid: str, h: int, rnd: random.Random) -> dict[str, float]:
+    u = rnd.uniform
+    seal = 86.0 + u(-1.0, 1.0)
+    if sid == "C":   # seal pot draining as the seal leaks
+        seal -= max(0, h - 20) * 2.3
+    return {"suction_pressure_bar": 1.85 + u(-0.05, 0.05),
+            "flow_m3h": 118.0 + u(-3.0, 3.0),
+            "seal_pot_level_pct": seal}
 
 
 def generate_scenario(sid: str) -> list[Observation]:
@@ -89,11 +118,32 @@ def generate_scenario(sid: str) -> list[Observation]:
             add(f"{sid}-SEN-{n:04d}", at(h), "sensor", param, values[param], unit,
                 text="Hourly average from plant historian", source="DCS historian")
 
+    rnd_extra = random.Random(spec["seed"] + 1000)
+    for h in range(HOURS):
+        values = _extra_values(sid, h, rnd_extra)
+        for param, unit in EXTRA_SENSORS:
+            n += 1
+            add(f"{sid}-SEN-{n:04d}", at(h), "sensor", param, values[param], unit,
+                text="Hourly average from plant historian", source="DCS historian")
+
     normal_log = "Shift check: P-301 running normally, no unusual noise reported."
 
+    def oil(prefix: str, hour: float, iron, water, particles, viscosity):
+        lab = "Oil sample from bearing housing"
+        add(f"{prefix}-LAB-0001", at(hour), "lab", "oil_iron_ppm", iron, "ppm",
+            text=f"{lab}: iron {iron} ppm.", source="Site laboratory")
+        add(f"{prefix}-LAB-0002", at(hour), "lab", "oil_water_ppm", water, "ppm",
+            text=f"{lab}: water {water} ppm.", source="Site laboratory")
+        add(f"{prefix}-LAB-0003", at(hour), "lab", "oil_particle_iso", particles, "ISO code",
+            text=f"{lab}: particle count ISO 4406 code {particles} (>=4 µm).",
+            source="Site laboratory")
+        add(f"{prefix}-LAB-0004", at(hour), "lab", "oil_viscosity_change_pct", viscosity, "%",
+            text=f"{lab}: viscosity {viscosity}% away from new oil.", source="Site laboratory")
+
     if sid == "A":
-        add("A-MNT-0001", "2026-10-02T10:00:00", "maintenance", "lubrication",
-            text="Routine bearing lubrication completed (WO-48211).", source="Maintenance team")
+        add("A-MNT-0001", "2026-07-20T10:00:00", "maintenance", "lubrication",
+            text="Routine bearing lubrication completed (WO-47630). Next due in 45 days.",
+            source="Maintenance team")
         add("A-CAL-0001", "2026-03-04T09:00:00", "calibration", "vib_sensor_cal",
             text="Vibration transmitter calibrated, as-found within tolerance.",
             source="Instrument workshop")
@@ -103,8 +153,7 @@ def generate_scenario(sid: str) -> list[Observation]:
             subject="overall", text=normal_log, source="Day shift operator")
         add("A-OPS-0003", at(30), "operator_log", "shift_check", status="normal",
             subject="overall", text=normal_log, source="Night shift operator")
-        add("A-LAB-0001", at(40), "lab", "oil_iron_ppm", 86, "ppm",
-            text="Oil sample from bearing housing: iron 86 ppm.", source="Site laboratory")
+        oil("A", 40, iron=86, water=160, particles=21, viscosity=13)
         add("A-OPS-0004", at(44), "operator_log", "shift_check", status="normal",
             subject="overall",
             text="Shift handover: P-301 running normally, no unusual noise reported.",
@@ -119,6 +168,34 @@ def generate_scenario(sid: str) -> list[Observation]:
         add("A-EVT-0001", _iso(start + timedelta(hours=47, minutes=10)), "event", "trip",
             status="abnormal", subject="overall",
             text="P-301 tripped on high vibration alarm (DCS).", source="DCS alarm log")
+    elif sid == "C":
+        add("C-MNT-0001", "2026-10-07T09:00:00", "maintenance", "seal_replacement",
+            text="Mechanical seal replaced after minor weep (WO-48502).", source="Maintenance team")
+        add("C-MNT-0002", "2026-10-20T10:00:00", "maintenance", "lubrication",
+            text="Routine bearing lubrication completed (WO-48611).", source="Maintenance team")
+        add("C-CAL-0001", "2026-05-12T09:00:00", "calibration", "vib_sensor_cal",
+            text="Vibration transmitter calibrated, as-found within tolerance.",
+            source="Instrument workshop")
+        add("C-OPS-0001", at(6), "operator_log", "shift_check", status="normal",
+            subject="overall", text=normal_log, source="Night shift operator")
+        add("C-OPS-0002", at(18), "operator_log", "shift_check", status="normal",
+            subject="overall", text=normal_log, source="Day shift operator")
+        add("C-OPS-0003", at(30), "operator_log", "shift_check", status="normal",
+            subject="overall", text=normal_log, source="Night shift operator")
+        oil("C", 36, iron=28, water=900, particles=17, viscosity=6)
+        add("C-OPS-0004", at(44), "operator_log", "shift_check", status="normal",
+            subject="overall",
+            text="Shift check: no leaks seen around P-301, running normally.",
+            source="Day shift operator")
+        add("C-INS-0001", at(45), "inspection", "handheld_vibration_mm_s", 3.9, "mm/s",
+            text="Route inspection with handheld analyser: 3.9 mm/s at drive end.",
+            source="Reliability technician")
+        add("C-INS-0002", at(45), "inspection", "seal_leak_ml_min", 18, "ml/min",
+            text="Seal area inspected: steady drip from mechanical seal, about 18 ml/min.",
+            source="Reliability technician")
+        add("C-EVT-0001", _iso(start + timedelta(hours=47, minutes=10)), "event", "trip",
+            status="abnormal", subject="overall",
+            text="P-301 tripped on seal pot low-low level alarm (DCS).", source="DCS alarm log")
     else:
         add("B-MNT-0001", "2026-10-09T10:00:00", "maintenance", "lubrication",
             text="Routine bearing lubrication completed (WO-48377).", source="Maintenance team")
@@ -140,8 +217,7 @@ def generate_scenario(sid: str) -> list[Observation]:
             subject="bearing_temp_c",
             text="Thermal camera round: bearing housing temperature looks normal.",
             source="Reliability technician")
-        add("B-LAB-0001", at(36), "lab", "oil_iron_ppm", 14, "ppm",
-            text="Oil sample from bearing housing: iron 14 ppm.", source="Site laboratory")
+        oil("B", 36, iron=14, water=120, particles=15, viscosity=3)
         add("B-EVT-0001", _iso(start + timedelta(hours=47, minutes=10)), "event", "trip",
             status="abnormal", subject="overall",
             text="P-301 tripped on high vibration alarm (DCS).", source="DCS alarm log")

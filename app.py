@@ -37,7 +37,10 @@ PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_
               "Cost": ":material/payments:", "History": ":material/history:",
               "Handover": ":material/sync_alt:"}
 PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing temp (°C)",
+                "seal_pot_level_pct": "Seal pot level (%)",
+                "suction_pressure_bar": "Suction pressure (bar)",
                 "discharge_pressure_bar": "Discharge pressure (bar)",
+                "flow_m3h": "Flow (m³/h)",
                 "motor_current_a": "Motor current (A)"}
 SOURCE_AR = {"sensor": "حساس", "operator_log": "سجل مشغّل", "inspection": "فحص",
              "lab": "مختبر", "calibration": "معايرة", "maintenance": "صيانة", "event": "حدث"}
@@ -69,7 +72,7 @@ HANDOVER_HEADINGS = ("Status", "Leading hypothesis", "Contradictions to resolve"
 @st.cache_resource(show_spinner=False)
 def get_store() -> Store:
     store = Store()
-    store.seed_if_empty()
+    store.sync_demo_data()
     return store
 
 
@@ -366,8 +369,7 @@ def page_overview(ctx: Ctx) -> None:
     st.title(f":material/factory: {bi(ctx.meta['asset_name'])}")
     st.caption(f"{bi(ctx.meta['title'])} · {bi('analysis window')} "
                f"{r.window_start.replace('T', ' ')} → {r.window_end.replace('T', ' ')}")
-    st.info(ctx.meta["summary"] + "  \n:small[:gray[توقفت المضخة P-301 بسبب إنذار اهتزاز عالٍ وتوقف "
-            "الخط 3. حدّد السبب قبل إعادة التشغيل.]]")
+    st.info(with_ar(ctx.meta["summary"]))
 
     c1, c2, c3, c4 = st.columns(4)
     with c1.container(key="pp_kpi_records"):
@@ -551,8 +553,8 @@ def _render_answer(ans: advisor.AdvisorAnswer) -> None:
 
 def page_advisor(ctx: Ctx) -> None:
     page_header(PAGE_ICONS["Advisor"], "Engineering advisor",
-                "Rule-based assistant: every answer comes from this investigation's evidence "
-                "and What If simulations. No external AI.")
+                "Ask anything about this investigation, in English or Arabic. Every answer is "
+                "built from its records and cites their IDs. No external AI.")
     chat = session_get("advisor_chat", ctx.sid) or []
     # Drop answers created by an older version of the advisor (e.g. after a redeploy).
     chat = [(q, a) for q, a in chat if hasattr(a, "attachment") and hasattr(a, "items")]
@@ -563,7 +565,13 @@ def page_advisor(ctx: Ctx) -> None:
     for col, (en, ar_text, intent) in zip(cols, advisor.SUGGESTED):
         if col.button(f"{en} :small[:gray[{ar_text}]]", key=f"adv_{intent}"):
             asked = en
-    typed = st.chat_input("Ask about this investigation · اسأل عن هذا التحقيق", key="adv_input")
+    st.markdown(f"**{bi('Or ask about anything in the records')}**")
+    ex_cols = st.columns(len(advisor.EXAMPLES))
+    for i, (col, (en, ar_text)) in enumerate(zip(ex_cols, advisor.EXAMPLES)):
+        if col.button(f"{en} :small[:gray[{ar_text}]]", key=f"adv_ex_{i}"):
+            asked = ar_text
+    typed = st.chat_input("Ask anything, e.g. is the oil ok? · اسأل أي سؤال، مثل: هل الزيت سليم؟",
+                          key="adv_input")
     if typed:
         asked = typed.strip()[:300]
     if asked:

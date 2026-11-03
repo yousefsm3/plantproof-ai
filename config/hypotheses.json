@@ -1,10 +1,12 @@
 {
-  "_comment": "Engine rules for PlantProof AI. Synthetic demo configuration - edit thresholds, weights and hypotheses here. No secrets belong in this file.",
+  "_comment": "Engine rules for PlantProof AI. Synthetic demo configuration - edit thresholds, weights and hypotheses here. No secrets belong in this file. Time ops: 'within_days' matches a record dated within N days before the trip; 'overdue_days' matches when the latest record is more than N days old.",
   "alarm_limits": {
     "vibration_mm_s": {"alarm": 7.1, "direction": "high", "unit": "mm/s"},
     "bearing_temp_c": {"alarm": 80.0, "direction": "high", "unit": "°C"},
     "discharge_pressure_bar": {"alarm": 3.0, "direction": "low", "unit": "bar"},
-    "motor_current_a": {"alarm": 55.0, "direction": "high", "unit": "A"}
+    "motor_current_a": {"alarm": 55.0, "direction": "high", "unit": "A"},
+    "suction_pressure_bar": {"alarm": 1.0, "direction": "low", "unit": "bar"},
+    "seal_pot_level_pct": {"alarm": 40.0, "direction": "low", "unit": "%"}
   },
   "contradiction_rules": {
     "claim_window_h": 2,
@@ -34,10 +36,14 @@
         {"label": "Online vibration above alarm", "weight": 2, "source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1},
         {"label": "Bearing temperature above alarm", "weight": 2, "source_type": "sensor", "parameter": "bearing_temp_c", "op": ">", "threshold": 80},
         {"label": "Elevated iron in oil sample", "weight": 3, "source_type": "lab", "parameter": "oil_iron_ppm", "op": ">", "threshold": 50},
-        {"label": "Handheld vibration confirms high level", "weight": 2, "source_type": "inspection", "parameter": "handheld_vibration_mm_s", "op": ">", "threshold": 7.1}
+        {"label": "Handheld vibration confirms high level", "weight": 2, "source_type": "inspection", "parameter": "handheld_vibration_mm_s", "op": ">", "threshold": 7.1},
+        {"label": "High particle contamination in oil", "weight": 2, "source_type": "lab", "parameter": "oil_particle_iso", "op": ">", "threshold": 18},
+        {"label": "Oil viscosity has changed significantly", "weight": 1, "source_type": "lab", "parameter": "oil_viscosity_change_pct", "op": ">", "threshold": 10},
+        {"label": "Bearing lubrication overdue", "weight": 2, "source_type": "maintenance", "parameter": "lubrication", "op": "overdue_days", "threshold": 60}
       ],
       "refutes": [
         {"label": "Oil iron content normal", "weight": 3, "source_type": "lab", "parameter": "oil_iron_ppm", "op": "<=", "threshold": 25},
+        {"label": "Oil cleanliness normal", "weight": 1, "source_type": "lab", "parameter": "oil_particle_iso", "op": "<=", "threshold": 16},
         {"label": "High vibration with normal bearing temperature", "weight": 2, "window_h": 1, "conditions": [
           {"source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1},
           {"source_type": "sensor", "parameter": "bearing_temp_c", "op": "<=", "threshold": 70}
@@ -46,7 +52,8 @@
       "required_evidence": [
         {"source_type": "sensor", "parameter": "vibration_mm_s", "label": "Online vibration trend"},
         {"source_type": "sensor", "parameter": "bearing_temp_c", "label": "Bearing temperature trend"},
-        {"source_type": "lab", "parameter": "oil_iron_ppm", "label": "Oil analysis (iron ppm)"}
+        {"source_type": "lab", "parameter": "oil_iron_ppm", "label": "Oil analysis (iron ppm)"},
+        {"source_type": "maintenance", "parameter": "lubrication", "label": "Lubrication history"}
       ],
       "recommended_actions": [
         "Plan bearing replacement before restart",
@@ -63,7 +70,10 @@
           {"source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1},
           {"source_type": "sensor", "parameter": "bearing_temp_c", "op": "<", "threshold": 70}
         ]},
-        {"label": "Handheld vibration reading is normal", "weight": 3, "source_type": "inspection", "parameter": "handheld_vibration_mm_s", "op": "<", "threshold": 4.5}
+        {"label": "Handheld vibration normal while online sensor reads high", "weight": 3, "window_h": 2, "conditions": [
+          {"source_type": "inspection", "parameter": "handheld_vibration_mm_s", "op": "<", "threshold": 4.5},
+          {"source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1}
+        ]}
       ],
       "refutes": [
         {"label": "Handheld vibration confirms high level", "weight": 3, "source_type": "inspection", "parameter": "handheld_vibration_mm_s", "op": ">", "threshold": 7.1},
@@ -80,18 +90,45 @@
       ]
     },
     {
+      "id": "seal_failure",
+      "name": "Mechanical seal failure",
+      "description": "The pump's mechanical seal is leaking, letting process fluid escape and contaminate the bearing oil.",
+      "supports": [
+        {"label": "Seal pot level below alarm", "weight": 3, "source_type": "sensor", "parameter": "seal_pot_level_pct", "op": "<", "threshold": 40},
+        {"label": "Seal leakage found at inspection", "weight": 3, "source_type": "inspection", "parameter": "seal_leak_ml_min", "op": ">", "threshold": 5},
+        {"label": "Water in bearing oil", "weight": 2, "source_type": "lab", "parameter": "oil_water_ppm", "op": ">", "threshold": 500},
+        {"label": "Seal replaced within the last 30 days", "weight": 1, "source_type": "maintenance", "parameter": "seal_replacement", "op": "within_days", "threshold": 30}
+      ],
+      "refutes": [
+        {"label": "Seal pot level stable throughout", "weight": 2, "mode": "all", "source_type": "sensor", "parameter": "seal_pot_level_pct", "op": ">=", "threshold": 60},
+        {"label": "No seal leakage at inspection", "weight": 2, "source_type": "inspection", "parameter": "seal_leak_ml_min", "op": "<=", "threshold": 1}
+      ],
+      "required_evidence": [
+        {"source_type": "sensor", "parameter": "seal_pot_level_pct", "label": "Seal pot level trend"},
+        {"source_type": "lab", "parameter": "oil_water_ppm", "label": "Oil analysis (water ppm)"}
+      ],
+      "recommended_actions": [
+        "Isolate the pump and replace the mechanical seal",
+        "Check seal installation and flush plan against the vendor procedure",
+        "Change the bearing oil and re-sample after restart"
+      ]
+    },
+    {
       "id": "cavitation",
       "name": "Pump cavitation",
       "description": "Low suction pressure causing vapour bubbles and vibration.",
       "supports": [
-        {"label": "Discharge pressure below alarm", "weight": 3, "source_type": "sensor", "parameter": "discharge_pressure_bar", "op": "<", "threshold": 3.0},
+        {"label": "Suction pressure below alarm", "weight": 3, "source_type": "sensor", "parameter": "suction_pressure_bar", "op": "<", "threshold": 1.0},
+        {"label": "Discharge pressure below alarm", "weight": 2, "source_type": "sensor", "parameter": "discharge_pressure_bar", "op": "<", "threshold": 3.0},
+        {"label": "Flow dropped well below normal", "weight": 1, "source_type": "sensor", "parameter": "flow_m3h", "op": "<", "threshold": 80},
         {"label": "Motor current dropped", "weight": 1, "source_type": "sensor", "parameter": "motor_current_a", "op": "<", "threshold": 36}
       ],
       "refutes": [
-        {"label": "Discharge pressure stable throughout", "weight": 2, "mode": "all", "source_type": "sensor", "parameter": "discharge_pressure_bar", "op": ">=", "threshold": 4.0}
+        {"label": "Suction pressure stable throughout", "weight": 2, "mode": "all", "source_type": "sensor", "parameter": "suction_pressure_bar", "op": ">=", "threshold": 1.4},
+        {"label": "Discharge pressure stable throughout", "weight": 1, "mode": "all", "source_type": "sensor", "parameter": "discharge_pressure_bar", "op": ">=", "threshold": 4.0}
       ],
       "required_evidence": [
-        {"source_type": "sensor", "parameter": "discharge_pressure_bar", "label": "Discharge pressure trend"},
+        {"source_type": "sensor", "parameter": "suction_pressure_bar", "label": "Suction pressure trend"},
         {"source_type": "inspection", "parameter": "strainer_dp_bar", "label": "Suction strainer differential pressure check"}
       ],
       "recommended_actions": [
@@ -105,7 +142,9 @@
       "description": "Pump and motor shafts are out of alignment tolerance.",
       "supports": [
         {"label": "Alignment offset out of tolerance", "weight": 3, "source_type": "inspection", "parameter": "alignment_offset_mm", "op": ">", "threshold": 0.1},
-        {"label": "Online vibration above alarm", "weight": 1, "source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1}
+        {"label": "Online vibration above alarm", "weight": 1, "source_type": "sensor", "parameter": "vibration_mm_s", "op": ">", "threshold": 7.1},
+        {"label": "Bearing replaced within the last 30 days", "weight": 1, "source_type": "maintenance", "parameter": "bearing_replacement", "op": "within_days", "threshold": 30},
+        {"label": "Seal replaced within the last 30 days", "weight": 1, "source_type": "maintenance", "parameter": "seal_replacement", "op": "within_days", "threshold": 30}
       ],
       "refutes": [
         {"label": "Alignment within tolerance", "weight": 3, "source_type": "inspection", "parameter": "alignment_offset_mm", "op": "<=", "threshold": 0.05}

@@ -25,7 +25,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Iterable
 
-from .domain import (AnalysisResult, Condition, EngineConfig, Finding,
+from .domain import (TIME_OPS, AnalysisResult, Condition, EngineConfig, Finding,
                      HypothesisAssessment, Observation, Rule)
 
 _OPS = {">": operator.gt, ">=": operator.ge, "<": operator.lt,
@@ -54,10 +54,26 @@ class _Index:
         return self.by_key.get(key, [])
 
 
-def evaluate_rule(rule: Rule, index: _Index) -> tuple[bool, list[str]]:
+def _age_days(obs: Observation, end: datetime) -> float:
+    return (end - obs.ts).total_seconds() / 86400
+
+
+def evaluate_rule(rule: Rule, index: _Index,
+                  end: datetime | None = None) -> tuple[bool, list[str]]:
     """Return (matched, record_ids that justify the match)."""
     first = rule.conditions[0]
     candidates = index.get(first.key)
+
+    if first.op in TIME_OPS:
+        if not candidates or end is None:
+            return False, []
+        if first.op == "within_days":
+            hits = [o for o in candidates if 0 <= _age_days(o, end) <= first.threshold]
+            return bool(hits), [o.record_id for o in hits]
+        latest = max(candidates, key=lambda o: o.ts)          # overdue_days
+        if _age_days(latest, end) > first.threshold:
+            return True, [latest.record_id]
+        return False, []
 
     if rule.mode == "all":
         if candidates and all(_matches(o, first) for o in candidates):
@@ -180,7 +196,7 @@ def analyse(observations: Iterable[Observation], config: EngineConfig,
         possible = sum(r.weight for r in hyp.supports)
 
         for j, rule in enumerate(hyp.supports, start=1):
-            ok, ids = evaluate_rule(rule, index)
+            ok, ids = evaluate_rule(rule, index, end)
             if ok:
                 support_score += rule.weight
                 supporting.append(Finding(
@@ -190,7 +206,7 @@ def analyse(observations: Iterable[Observation], config: EngineConfig,
                     tuple(ids), (hyp.id,), "medium", f"{hyp.id}:support:{j}"))
 
         for j, rule in enumerate(hyp.refutes, start=1):
-            ok, ids = evaluate_rule(rule, index)
+            ok, ids = evaluate_rule(rule, index, end)
             if ok:
                 refute_score += rule.weight
                 refuting.append(Finding(

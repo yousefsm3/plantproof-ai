@@ -14,6 +14,7 @@ UPDATEd or DELETEd. Only reset_observations() (drop and re-seed) replaces them.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -70,6 +71,7 @@ CREATE TABLE IF NOT EXISTS history (
     payload TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_history_kind ON history(kind, created_at);
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 
@@ -106,6 +108,37 @@ class Store:
             else:
                 row = c.execute("SELECT COUNT(*) FROM observations").fetchone()
         return int(row[0])
+
+    @staticmethod
+    def data_version(scenario_dir: Path = SCENARIO_DIR) -> str:
+        """Fingerprint of the demo data files; changes whenever they are regenerated."""
+        h = hashlib.sha256()
+        for f in sorted(scenario_dir.glob("*")):
+            if f.suffix in (".csv", ".json"):
+                h.update(f.name.encode())
+                h.update(f.read_bytes())
+        return h.hexdigest()[:16]
+
+    def _meta(self, key: str) -> str | None:
+        with self._conn() as c:
+            row = c.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+        return None if row is None else row[0]
+
+    def _set_meta(self, key: str, value: str) -> None:
+        with self._conn() as c:
+            c.execute("INSERT OR REPLACE INTO meta VALUES (?,?)", (key, value))
+
+    def sync_demo_data(self, scenario_dir: Path = SCENARIO_DIR) -> int:
+        """Seed, or re-seed when the demo files changed (e.g. after a redeploy).
+
+        History is never touched. Returns the number of records loaded (0 = up to date).
+        """
+        version = self.data_version(scenario_dir)
+        if self.observation_count() > 0 and self._meta("data_version") == version:
+            return 0
+        n = self.reset_observations(scenario_dir)
+        self._set_meta("data_version", version)
+        return n
 
     def seed_if_empty(self, scenario_dir: Path = SCENARIO_DIR) -> int:
         if self.observation_count() > 0:

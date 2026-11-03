@@ -18,7 +18,7 @@ class StorageTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_seed_matches_csv_and_is_idempotent(self):
-        for sid in ("A", "B"):
+        for sid in ("A", "B", "C"):
             self.assertEqual(list(self.store.observations(sid)),
                              read_observations_csv(SCENARIO_DIR / f"scenario_{sid}.csv"))
         self.assertEqual(self.store.seed_if_empty(), 0)
@@ -29,7 +29,19 @@ class StorageTests(unittest.TestCase):
                 c.execute("UPDATE observations SET value = 0 WHERE record_id = 'A-LAB-0001'")
             with self.assertRaises(sqlite3.DatabaseError):
                 c.execute("DELETE FROM observations")
-        self.assertEqual(self.store.observation_count("A"), 202)
+        self.assertEqual(self.store.observation_count("A"), 349)
+
+    def test_sync_reloads_when_demo_data_changes(self):
+        import shutil
+        self.store.save("investigation", "A", "Keep me", {})
+        self.assertEqual(self.store.sync_demo_data(), 1047)       # first sync records version
+        self.assertEqual(self.store.sync_demo_data(), 0)          # unchanged: nothing to do
+        copy = Path(self.tmp.name) / "scen"
+        shutil.copytree(SCENARIO_DIR, copy)
+        rows = (copy / "scenario_A.csv").read_text(encoding="utf-8").splitlines()
+        (copy / "scenario_A.csv").write_text("\n".join(rows[:-1]) + "\n", encoding="utf-8")
+        self.assertEqual(self.store.sync_demo_data(copy), 1046)   # changed: reloaded
+        self.assertEqual(len(self.store.list_history()), 1)       # history kept
 
     def test_history_crud(self):
         uid = self.store.save("investigation", "A", "Test", {"notes": "hello"})
@@ -64,7 +76,7 @@ class StorageTests(unittest.TestCase):
 
     def test_reset_keeps_history(self):
         self.store.save("whatif", "A", "Run", {})
-        self.assertEqual(self.store.reset_observations(), 403)
+        self.assertEqual(self.store.reset_observations(), 1047)
         self.assertEqual(len(self.store.list_history()), 1)
 
 

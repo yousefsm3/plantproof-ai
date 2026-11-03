@@ -289,6 +289,37 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
   font-size: .86rem; line-height: 1.6; margin: -6px 0 8px 0; }}
 .pp-rtl-title {{ font-size: .95rem; font-weight: 600; margin-top: -10px; }}
 .pp-rtl-note {{ font-size: .78rem; }}
+/* ---- clear, solid cards, inputs and buttons (readable on top of the background) ---- */
+[data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stPlotlyChart"], [data-testid="stDataFrame"], [data-testid="stExpander"],
+[data-testid="stTabs"], [data-testid="stForm"] {{
+  background: #FFFFFF !important; border: 1.5px solid #9DB5B0 !important;
+  box-shadow: 0 4px 14px rgba(11,46,45,0.16) !important;
+}}
+[data-testid="stAlert"] {{ border: 1.5px solid #9DB5B0; border-radius: 10px; }}
+[data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="select"] > div,
+[data-baseweb="base-input"], [data-testid="stNumberInputContainer"] {{
+  background: #FFFFFF !important; border: 1.5px solid #6F8F8A !important; border-radius: 8px !important;
+}}
+[data-baseweb="input"] input, [data-baseweb="textarea"] textarea, [data-baseweb="base-input"] input {{
+  background: #FFFFFF !important; color: #0B2E2D !important;
+}}
+[data-baseweb="input"]:focus-within, [data-baseweb="textarea"]:focus-within,
+[data-baseweb="select"] > div:focus-within {{ border-color: {PETROL} !important;
+  box-shadow: 0 0 0 2px rgba(20,90,85,0.25) !important; }}
+[data-testid="stCheckbox"] label span:first-child {{ border: 1.5px solid #6F8F8A; }}
+[data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-secondaryFormSubmit"] {{
+  background: #FFFFFF !important; border: 1.5px solid {PETROL} !important; color: #0B2E2D !important;
+  font-weight: 600 !important;
+}}
+[data-testid="stBaseButton-secondary"]:hover {{ background: #E6F2EF !important; }}
+[data-testid="stBaseButton-primary"], [data-testid="stBaseButton-primaryFormSubmit"] {{
+  border: 1.5px solid #0B2E2D !important; font-weight: 600 !important;
+  box-shadow: 0 3px 8px rgba(11,46,45,0.25) !important;
+}}
+/* hide the GitHub / Fork / edit icons Streamlit Cloud adds to the top bar */
+[data-testid="stToolbarActions"], .stAppDeployButton, [data-testid="stAppDeployButton"] {{
+  display: none !important; }}
 .pp-name {{ font-size: 1.25rem; font-weight: 700; color: #0B2E2D; letter-spacing: .2px; }}
 .pp-name span {{ color: {COPPER}; }}
 </style>

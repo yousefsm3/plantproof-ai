@@ -46,6 +46,15 @@ def main() -> int:
         deadline = time.time() + TIMEOUT_S
         while time.time() < deadline:
             if app_loaded(page):
+                time.sleep(10)
+                for frame in page.frames:
+                    try:
+                        text = frame.locator("body").inner_text(timeout=5_000)
+                    except Exception:
+                        continue
+                    if any(w in text for w in ("Traceback", "Error", "Exception")):
+                        print("::warning::The app page shows an error:")
+                        print(text[:3000])
                 print("App loaded and responding.")
                 browser.close()
                 return 0

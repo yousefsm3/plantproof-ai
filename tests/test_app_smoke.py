@@ -35,7 +35,7 @@ class AppSmokeTest(unittest.TestCase):
         os.environ.pop("PLANTPROOF_DB", None)
         self.tmp.cleanup()
 
-    def run_app(self, overrides, press=False, session=None):
+    def run_app(self, overrides, press=False, session=None, query=None):
         overrides = dict(overrides)
         overrides.setdefault("pp_advisor_side", False)   # "press all" must not jump pages
         overrides.setdefault("pp_advisor_fab", False)
@@ -44,6 +44,7 @@ class AppSmokeTest(unittest.TestCase):
             overrides["page"] = "Overview"
             session["view"] = "Advisor"
         fake = FakeStreamlit(overrides, press_buttons=press, session=session)
+        fake.query_params = dict(query or {})
         sys.modules["streamlit"] = fake
         sys.modules.update(make_plotly_modules())
         sys.modules.update(make_components_modules(fake))
@@ -148,6 +149,13 @@ class AppSmokeTest(unittest.TestCase):
             old_storage.Store = real
         self.assertEqual(self.errors(fake), [])
         self.assertTrue(hasattr(sys.modules["plantproof.storage"].Store, "sync_demo_data"))
+
+    def test_pairing_link_opens_live_sensor_with_code(self):
+        session = SessionState()
+        fake = self.run_app({"scenario": "A"}, session=session, query={"pair": "123456"})
+        self.assertEqual(session.get("page"), "Live Sensor")
+        self.assertTrue(any(c[0] == "components.html" for c in fake.calls))
+        self.assertEqual(self.errors(fake), [])
 
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})

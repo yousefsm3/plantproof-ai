@@ -219,6 +219,10 @@ AR: dict[str, str] = {
     'Check every sentence': 'دقّق كل جملة',
     'Arabic': 'عربي',
     'English': 'إنجليزي',
+    'Turn a phone into a vibration sensor for this screen. Put it flat on a running machine (a fan or a washing machine), let the model learn normal for 10 seconds, then change how the machine runs and watch the screen detect it.': 'حوّل الجوال إلى حساس اهتزاز لهذه الشاشة. حطه على آلة شغالة (مروحة أو غسالة)، وخلّ النموذج يتعلّم الطبيعي 10 ثوانٍ، بعدها غيّر تشغيل الآلة وشوف الشاشة تكتشف التغيير.',
+    '1. Keep this page open on the iPad or laptop: it shows a code and a QR.': '1. خلّ هذه الصفحة مفتوحة على الآيباد أو اللابتوب: تظهر فيها رمز ورمز QR.',
+    '2. Scan the QR with the phone camera and press Start sending.': '2. صوّر رمز QR بكاميرا الجوال واضغط «ابدأ الإرسال».',
+    '3. Put the phone on the machine. The screen learns, then alerts when the vibration changes.': '3. حط الجوال على الآلة. الشاشة تتعلّم، وبعدها تنبّه إذا تغيّر الاهتزاز.',
     # --- what if
     "What If simulations": "محاكاة ماذا لو",
     "Changes are applied to a copy of the data. Original observations are never modified - each run proves this with a fingerprint check.":

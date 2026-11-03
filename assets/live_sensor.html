@@ -9,18 +9,26 @@
   body { margin:0; font-family: "Source Sans Pro", system-ui, -apple-system, sans-serif; color:var(--ink); background:transparent; }
   .card { background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:14px 16px;
           box-shadow:0 4px 14px rgba(11,46,45,.16); }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .tabs button { flex:1 1 150px; }
+  .tabs button.on { background:var(--petrol); color:#fff; border-color:var(--ink); }
   .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   button { font:inherit; font-weight:600; border-radius:8px; padding:9px 14px; cursor:pointer;
            border:1.5px solid var(--petrol); background:#fff; color:var(--ink); }
   button.primary { background:var(--petrol); color:#fff; border-color:var(--ink); }
   button.fault { border-color:var(--copper); }
   button:disabled { opacity:.45; cursor:default; }
+  input { font:inherit; font-size:1.4rem; letter-spacing:.3em; width:9em; text-align:center; padding:8px;
+          border:1.5px solid #6F8F8A; border-radius:8px; }
   .ar { color:#6B7B7A; font-size:.8em; font-weight:400; margin-inline-start:.35em; }
+  .on .ar, .primary .ar { color:#DDEFE9; }
   .status { margin-top:12px; padding:10px 12px; border-radius:10px; font-weight:600; border:1.5px solid; }
   .s-idle { background:#F1F5F4; border-color:#C9D6D3; }
   .s-learn { background:#FCF1E6; border-color:#EED3B8; }
   .s-ok { background:#E8F4EE; border-color:#A9D3BD; color:var(--ok); }
   .s-bad { background:#FDEDEB; border-color:#F3C4BD; color:var(--alert); }
+  .s-big { font-size:1.35rem; padding:16px; animation: pulse 1s ease-in-out infinite alternate; }
+  @keyframes pulse { from { box-shadow:0 0 0 0 rgba(180,35,24,.0);} to { box-shadow:0 0 0 8px rgba(180,35,24,.18);} }
   .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
   .stat { background:#F6FAF9; border:1px solid #D3E5E1; border-radius:8px; padding:8px 10px; }
   .stat b { display:block; font-size:1.25rem; }
@@ -28,17 +36,59 @@
   canvas { width:100%; height:220px; margin-top:12px; border:1px solid #D3E5E1; border-radius:8px; background:#fff; }
   .note { font-size:.82rem; color:#4D605E; margin-top:8px; line-height:1.5; }
   .rtl { direction:rtl; text-align:right; }
+  .pair { display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+  .code { font-size:2.4rem; font-weight:800; letter-spacing:.25em; color:var(--petrol); }
+  #qr svg { width:150px; height:150px; border:1px solid #D3E5E1; border-radius:8px; background:#fff; }
+  .hide { display:none !important; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#B9CCC9; margin-inline-end:6px; }
+  .dot.live { background:#1E7B4F; }
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="row">
-    <button class="primary" id="btnPhone">Use this phone's sensor <span class="ar" style="color:#DDEFE9">استخدم حساس الجوال</span></button>
-    <button id="btnDemo">Demo mode <span class="ar">وضع تجريبي</span></button>
-    <button class="fault" id="btnFault" disabled>Add a fault (demo) <span class="ar">أضف عطلًا</span></button>
-    <button id="btnReset" disabled>Restart <span class="ar">إعادة</span></button>
+  <div class="tabs">
+    <button id="tScreen">Screen (iPad / laptop) <span class="ar">الشاشة</span></button>
+    <button id="tPhone">Sensor (phone) <span class="ar">الحساس (الجوال)</span></button>
+    <button id="tLocal">This device only <span class="ar">هذا الجهاز فقط</span></button>
   </div>
-  <div id="status" class="status s-idle">Press a button to start. <span class="ar">اضغط زرًا للبدء.</span></div>
+
+  <!-- screen: shows a pairing code + QR, receives the phone's readings -->
+  <div id="screen" class="hide">
+    <div class="pair">
+      <div>
+        <div>Pairing code <span class="ar">رمز الربط</span></div>
+        <div class="code" id="code">------</div>
+        <div class="note">Scan the QR with the phone camera, or open this page on the phone,
+          choose "Sensor (phone)" and type the code.
+          <div class="rtl">صوّر الرمز بكاميرا الجوال، أو افتح الصفحة على الجوال واختر "الحساس" واكتب الرمز.</div></div>
+      </div>
+      <div id="qr"></div>
+    </div>
+    <div class="row" style="margin-top:8px"><span class="dot" id="link"></span><span id="linkText">Waiting for the phone… <span class="ar">بانتظار الجوال…</span></span></div>
+  </div>
+
+  <!-- phone: sends its vibration to the screen -->
+  <div id="phone" class="hide">
+    <div class="row">
+      <input id="codeIn" inputmode="numeric" maxlength="6" placeholder="000000">
+      <button class="primary" id="btnSend">Start sending <span class="ar">ابدأ الإرسال</span></button>
+      <button id="btnSendDemo">Send demo vibration <span class="ar">أرسل اهتزازًا تجريبيًا</span></button>
+      <button class="fault hide" id="btnSendFault">Add a fault <span class="ar">أضف عطلًا</span></button>
+    </div>
+    <div class="note">Put the phone flat on the running machine (a fan or a washing machine). Keep this page open.
+      <div class="rtl">حط الجوال على الآلة وهي شغالة (مروحة أو غسالة)، وخلّ الصفحة مفتوحة.</div></div>
+  </div>
+
+  <!-- this device only -->
+  <div id="local" class="hide">
+    <div class="row">
+      <button class="primary" id="btnPhone">Use this device's sensor <span class="ar">استخدم حساس الجهاز</span></button>
+      <button id="btnDemo">Demo mode <span class="ar">وضع تجريبي</span></button>
+      <button class="fault" id="btnFault" disabled>Add a fault (demo) <span class="ar">أضف عطلًا</span></button>
+    </div>
+  </div>
+
+  <div id="status" class="status s-idle">Choose how to use the sensor. <span class="ar">اختر طريقة الاستخدام.</span></div>
   <div class="stats">
     <div class="stat"><span>Vibration (RMS, m/s²) · الاهتزاز</span><b id="vRms">–</b></div>
     <div class="stat"><span>Anomaly score · درجة الشذوذ</span><b id="vScore">–</b></div>
@@ -46,52 +96,33 @@
   </div>
   <canvas id="chart" width="900" height="220"></canvas>
   <div class="note">
-    How it works: for the first 10 seconds the model learns what "normal" vibration looks like on
-    this machine (level and peaks). After that it scores every half-second against what it learned
-    and raises an alert when three windows in a row are unusual. Nothing is sent anywhere: it runs
-    in your browser.
-    <div class="rtl">طريقة العمل: أول 10 ثوانٍ يتعلّم النموذج الاهتزاز الطبيعي لهذه الآلة، وبعدها يقيّم كل نصف ثانية
-    وينبّه إذا تكرر سلوك غير طبيعي ثلاث مرات متتالية. لا تُرسل أي بيانات: كل شيء يعمل داخل متصفحك.</div>
+    How it works: the model first learns what "normal" vibration looks like for 10 seconds (level and
+    peaks), then scores every half-second and raises an alert when three windows in a row are unusual.
+    In phone-to-screen mode the phone sends only two numbers per half-second (vibration level and peak)
+    over MQTT, the messaging protocol used for industrial sensors, through a free public broker.
+    <div class="rtl">طريقة العمل: النموذج يتعلّم الاهتزاز الطبيعي أول 10 ثوانٍ، وبعدها يقيّم كل نصف ثانية وينبّه إذا تكرر سلوك
+    غير طبيعي ثلاث مرات متتالية. في وضع الربط يرسل الجوال رقمين فقط كل نصف ثانية عبر بروتوكول MQTT المستخدم في حساسات المصانع.</div>
   </div>
 </div>
 <script>
 (() => {
-  const LEARN_S = 10, WIN_MS = 500, KEEP = 120, MARGIN = 1.6, RUN = 3;
+  const CFG = { appUrl: "__APP_URL__", pair: "__PAIR__" };
+  const BROKERS = ["wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt"];
+  const TOPIC = c => "plantproof-ai/yaqen/live/" + c;
+  const LEARN_N = 20, WIN_MS = 500, KEEP = 120, MARGIN = 1.6, RUN = 3;
   const $ = id => document.getElementById(id);
   const ctx = $("chart").getContext("2d");
-  let mode = null, samples = [], points = [], train = [], model = null, streak = 0, alerted = false;
-  let started = 0, timer = null, demoT = 0, fault = 0, gotMotion = false, lastG = null;
+  const AR = s => ' <span class="ar">' + s + "</span>";
 
-  function setStatus(cls, en, ar) {
-    $("status").className = "status " + cls;
-    $("status").innerHTML = en + ' <span class="ar">' + ar + "</span>";
+  // ------------------------------------------------------------ shared model + chart
+  let points = [], train = [], model = null, streak = 0, alerted = false;
+  function setStatus(cls, en, ar, big) {
+    $("status").className = "status " + cls + (big ? " s-big" : "");
+    $("status").innerHTML = en + AR(ar);
   }
-  function onMotion(e) {
-    let a = e.acceleration;
-    let x, y, z;
-    if (a && a.x != null) { x = a.x; y = a.y; z = a.z; }
-    else {                       // high-pass the gravity vector out
-      const g = e.accelerationIncludingGravity; if (!g || g.x == null) return;
-      if (!lastG) lastG = { x: g.x, y: g.y, z: g.z };
-      lastG = { x: .9 * lastG.x + .1 * g.x, y: .9 * lastG.y + .1 * g.y, z: .9 * lastG.z + .1 * g.z };
-      x = g.x - lastG.x; y = g.y - lastG.y; z = g.z - lastG.z;
-    }
-    gotMotion = true;
-    samples.push(Math.sqrt(x * x + y * y + z * z));
-  }
-  function demoSamples() {      // a running motor: steady hum + noise, plus a growing fault
-    for (let i = 0; i < 30; i++) {
-      demoT += 1 / 60;
-      const hum = 0.35 * Math.sin(2 * Math.PI * 25 * demoT) + 0.12 * (Math.random() - .5);
-      const f = fault * (0.5 + 0.9 * Math.abs(Math.sin(2 * Math.PI * 3 * demoT)));
-      samples.push(Math.abs(hum) + 0.2 + f * Math.random());
-    }
-  }
-  function features(win) {
-    const n = win.length; if (!n) return null;
-    const rms = Math.sqrt(win.reduce((s, v) => s + v * v, 0) / n);
-    const peak = win.reduce((m, v) => Math.max(m, v), 0);
-    return [rms, peak];
+  function resetModel() {
+    points = []; train = []; model = null; streak = 0; alerted = false;
+    $("vRms").textContent = $("vScore").textContent = $("vThr").textContent = "–"; draw();
   }
   function fit(rows) {
     const k = rows[0].length, mean = [], sd = [];
@@ -101,39 +132,27 @@
       mean.push(m); sd.push(Math.max(Math.sqrt(v), 1e-3 + 0.05 * Math.abs(m)));
     }
     const score = r => Math.sqrt(r.reduce((s, x, j) => s + ((x - mean[j]) / sd[j]) ** 2, 0) / k);
-    const thr = Math.max(...rows.map(score)) * MARGIN;
-    return { score, thr };
+    return { score, thr: Math.max(...rows.map(score)) * MARGIN };
   }
-  function tick() {
-    if (mode === "demo") demoSamples();
-    const win = samples; samples = [];
-    const elapsed = (Date.now() - started) / 1000;
-    if (mode === "phone" && !gotMotion && elapsed > 3) {
-      setStatus("s-bad", "No sensor data. Open the app in Safari on an iPhone, allow motion access, or use Demo mode.",
-                "لا توجد بيانات من الحساس. افتح المنصة في سفاري على الآيفون واسمح بالوصول للحركة، أو استخدم الوضع التجريبي.");
-      return draw();
-    }
-    const f = features(win); if (!f) return draw();
+  function push(f, onFirstModel) {           // f = [rms, peak]
     $("vRms").textContent = f[0].toFixed(2);
     if (!model) {
-      train.push(f);
-      setStatus("s-learn", `Learning normal behaviour… ${Math.max(0, LEARN_S - elapsed).toFixed(0)} s. Keep the machine running normally.`,
-                `يتعلّم السلوك الطبيعي… ${Math.max(0, LEARN_S - elapsed).toFixed(0)} ثانية. خلّ الآلة تشتغل بشكل طبيعي.`);
-      points.push({ rms: f[0], score: null });
-      if (elapsed >= LEARN_S && train.length >= 8) {
-        model = fit(train);
-        $("vThr").textContent = model.thr.toFixed(2);
-        if (mode === "demo") $("btnFault").disabled = false;
+      train.push(f); points.push({ rms: f[0], score: null });
+      const left = Math.ceil((LEARN_N - train.length) * WIN_MS / 1000);
+      setStatus("s-learn", `Learning normal behaviour… ${left} s. Keep the machine running normally.`,
+                `يتعلّم السلوك الطبيعي… ${left} ثانية. خلّ الآلة تشتغل بشكل طبيعي.`);
+      if (train.length >= LEARN_N) {
+        model = fit(train); $("vThr").textContent = model.thr.toFixed(2);
+        if (onFirstModel) onFirstModel();
       }
     } else {
-      const s = model.score(f);
-      $("vScore").textContent = s.toFixed(2);
+      const s = model.score(f); $("vScore").textContent = s.toFixed(2);
       streak = s > model.thr ? streak + 1 : 0;
       points.push({ rms: f[0], score: s });
       if (streak >= RUN) {
         alerted = true;
         setStatus("s-bad", `Anomaly detected: vibration no longer matches the learned normal (score ${s.toFixed(1)} vs ${model.thr.toFixed(1)}).`,
-                  `تم اكتشاف سلوك غير طبيعي: الاهتزاز لم يعد يطابق الطبيعي الذي تعلّمه النموذج.`);
+                  "تم اكتشاف سلوك غير طبيعي: الاهتزاز لم يعد يطابق الطبيعي الذي تعلّمه النموذج.", true);
       } else if (!alerted) {
         setStatus("s-ok", "Model trained. Monitoring: behaviour is normal.", "تم التعلّم. المراقبة جارية: السلوك طبيعي.");
       }
@@ -147,10 +166,8 @@
     ctx.strokeStyle = "#E3ECEA"; ctx.lineWidth = 1;
     for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 4); ctx.lineTo(W, H * i / 4); ctx.stroke(); }
     const x = i => (i / (KEEP - 1)) * W, y = v => H - (v / maxR) * (H - 10) - 5;
-    ctx.lineWidth = 2.5; ctx.beginPath();
-    points.forEach((p, i) => {
-      ctx.strokeStyle = "#145A55"; i ? ctx.lineTo(x(i), y(p.rms)) : ctx.moveTo(x(i), y(p.rms));
-    });
+    ctx.strokeStyle = "#145A55"; ctx.lineWidth = 2.5; ctx.beginPath();
+    points.forEach((p, i) => (i ? ctx.lineTo(x(i), y(p.rms)) : ctx.moveTo(x(i), y(p.rms))));
     ctx.stroke();
     points.forEach((p, i) => {
       if (model && p.score != null && p.score > model.thr) {
@@ -160,37 +177,162 @@
     ctx.fillStyle = "#4D605E"; ctx.font = "13px system-ui";
     ctx.fillText("Vibration RMS · الاهتزاز (red = anomaly · أحمر = شذوذ)", 8, 16);
   }
-  async function start(m) {
-    stop(); mode = m; samples = []; points = []; train = []; model = null; streak = 0; alerted = false;
-    fault = 0; gotMotion = false; lastG = null; started = Date.now();
-    $("vRms").textContent = $("vScore").textContent = $("vThr").textContent = "–";
-    $("btnReset").disabled = false; $("btnFault").disabled = true;
-    if (m === "phone") {
-      try {
-        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-          const r = await DeviceMotionEvent.requestPermission();
-          if (r !== "granted") {
-            setStatus("s-bad", "Motion access was not allowed. Use Demo mode, or allow it and try again.",
-                      "لم يتم السماح بالوصول للحركة. استخدم الوضع التجريبي أو اسمح وجرّب مرة ثانية.");
-            return;
-          }
-        }
-      } catch (err) {
-        setStatus("s-bad", "This browser blocked the motion sensor here. Use Demo mode.",
-                  "المتصفح منع الوصول للحساس هنا. استخدم الوضع التجريبي.");
-        return;
-      }
-      window.addEventListener("devicemotion", onMotion);
-      setStatus("s-learn", "Waiting for the motion sensor… Put the phone flat on the running machine.",
-                "بانتظار الحساس… حط الجوال على الآلة وهي شغالة.");
+
+  // ------------------------------------------------------------ sensor sources
+  let samples = [], lastG = null, gotMotion = false, demoT = 0, fault = 0;
+  function onMotion(e) {
+    let a = e.acceleration, x, y, z;
+    if (a && a.x != null) { x = a.x; y = a.y; z = a.z; }
+    else {
+      const g = e.accelerationIncludingGravity; if (!g || g.x == null) return;
+      if (!lastG) lastG = { x: g.x, y: g.y, z: g.z };
+      lastG = { x: .9 * lastG.x + .1 * g.x, y: .9 * lastG.y + .1 * g.y, z: .9 * lastG.z + .1 * g.z };
+      x = g.x - lastG.x; y = g.y - lastG.y; z = g.z - lastG.z;
     }
-    timer = setInterval(tick, WIN_MS);
+    gotMotion = true; samples.push(Math.sqrt(x * x + y * y + z * z));
   }
-  function stop() { if (timer) clearInterval(timer); timer = null; window.removeEventListener("devicemotion", onMotion); }
-  $("btnPhone").onclick = () => start("phone");
-  $("btnDemo").onclick = () => start("demo");
-  $("btnReset").onclick = () => start(mode || "demo");
+  function demoSamples() {
+    for (let i = 0; i < 30; i++) {
+      demoT += 1 / 60;
+      const hum = 0.35 * Math.sin(2 * Math.PI * 25 * demoT) + 0.12 * (Math.random() - .5);
+      const f = fault * (0.5 + 0.9 * Math.abs(Math.sin(2 * Math.PI * 3 * demoT)));
+      samples.push(Math.abs(hum) + 0.2 + f * Math.random());
+    }
+  }
+  function takeWindow(demo) {
+    if (demo) demoSamples();
+    const w = samples; samples = [];
+    if (!w.length) return null;
+    return [Math.sqrt(w.reduce((s, v) => s + v * v, 0) / w.length), w.reduce((m, v) => Math.max(m, v), 0)];
+  }
+  async function askMotion() {
+    try {
+      if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+        if (await DeviceMotionEvent.requestPermission() !== "granted") return false;
+      }
+    } catch (err) { return false; }
+    window.addEventListener("devicemotion", onMotion); return true;
+  }
+
+  // ------------------------------------------------------------ helpers
+  const loaded = {};
+  function loadScript(src) {
+    if (!loaded[src]) loaded[src] = new Promise((ok, bad) => {
+      const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = bad;
+      document.head.appendChild(s);
+    });
+    return loaded[src];
+  }
+  async function connect(onReady) {
+    await loadScript("https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js");
+    for (const url of BROKERS) {
+      const client = window.mqtt.connect(url, { connectTimeout: 6000, reconnectPeriod: 2000,
+        clientId: "pp-" + Math.random().toString(16).slice(2, 10) });
+      const ok = await new Promise(res => {
+        const t = setTimeout(() => res(false), 7000);
+        client.once("connect", () => { clearTimeout(t); res(true); });
+      });
+      if (ok) { onReady && onReady(url); return client; }
+      client.end(true);
+    }
+    throw new Error("no broker");
+  }
+  let timer = null, client = null;
+  function stopAll() {
+    if (timer) clearInterval(timer); timer = null;
+    window.removeEventListener("devicemotion", onMotion);
+    if (client) { try { client.end(true); } catch (e) {} client = null; }
+    samples = []; fault = 0; gotMotion = false; lastG = null;
+  }
+  function show(id) {
+    ["screen", "phone", "local"].forEach(k => $(k).classList.toggle("hide", k !== id));
+    [["tScreen", "screen"], ["tPhone", "phone"], ["tLocal", "local"]].forEach(([b, k]) => $(b).classList.toggle("on", k === id));
+  }
+
+  // ------------------------------------------------------------ screen mode
+  async function startScreen() {
+    stopAll(); resetModel(); show("screen");
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    $("code").textContent = code;
+    const url = CFG.appUrl + (CFG.appUrl.includes("?") ? "&" : "?") + "pair=" + code;
+    loadScript("https://unpkg.com/qrcode-generator@1.4.4/qrcode.js").then(() => {
+      const q = window.qrcode(0, "M"); q.addData(url); q.make();
+      $("qr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    }).catch(() => { $("qr").textContent = url; });
+    setStatus("s-idle", "Connecting…", "جاري الاتصال…");
+    try { client = await connect(); }
+    catch (e) { return setStatus("s-bad", "Could not reach the messaging service. Check the internet and try again.", "تعذّر الاتصال بخدمة الرسائل. تأكد من الإنترنت وحاول مرة ثانية."); }
+    let last = 0;
+    client.subscribe(TOPIC(code));
+    setStatus("s-idle", "Ready. Waiting for the phone to start sending.", "جاهز. بانتظار الجوال يبدأ الإرسال.");
+    client.on("message", (_t, buf) => {
+      let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
+      if (m.reset) { resetModel(); return; }
+      last = Date.now();
+      $("link").classList.add("live");
+      $("linkText").innerHTML = "Phone connected" + AR("الجوال متصل");
+      push([m.r, m.p]);
+    });
+    timer = setInterval(() => {
+      if (last && Date.now() - last > 3000) {
+        $("link").classList.remove("live");
+        $("linkText").innerHTML = "Phone stopped sending" + AR("الجوال توقف عن الإرسال");
+      }
+    }, 1000);
+  }
+
+  // ------------------------------------------------------------ phone mode
+  async function startPhone(demo) {
+    stopAll(); resetModel(); show("phone");
+    const code = ($("codeIn").value || "").replace(/\D/g, "");
+    if (code.length !== 6) return setStatus("s-bad", "Type the 6-digit code shown on the screen.", "اكتب الرمز المكوّن من 6 أرقام الظاهر على الشاشة.");
+    if (!demo && !(await askMotion()))
+      return setStatus("s-bad", "Motion access was blocked. Allow it, or use Send demo vibration.", "تم منع الوصول للحركة. اسمح به، أو استخدم الاهتزاز التجريبي.");
+    $("btnSendFault").classList.toggle("hide", !demo);
+    setStatus("s-idle", "Connecting…", "جاري الاتصال…");
+    try { client = await connect(); }
+    catch (e) { return setStatus("s-bad", "Could not reach the messaging service. Check the internet.", "تعذّر الاتصال بخدمة الرسائل. تأكد من الإنترنت."); }
+    const topic = TOPIC(code); let sent = 0; const t0 = Date.now();
+    client.publish(topic, JSON.stringify({ reset: 1 }));
+    timer = setInterval(() => {
+      if (!demo && !gotMotion && Date.now() - t0 > 3000)
+        return setStatus("s-bad", "No sensor data on this device. Use Send demo vibration.", "لا توجد بيانات من حساس هذا الجهاز. استخدم الاهتزاز التجريبي.");
+      const f = takeWindow(demo); if (!f) return;
+      client.publish(topic, JSON.stringify({ r: +f[0].toFixed(4), p: +f[1].toFixed(4), s: ++sent }));
+      $("vRms").textContent = f[0].toFixed(2);
+      points.push({ rms: f[0], score: null }); if (points.length > KEEP) points.shift(); draw();
+      setStatus("s-ok", `Sending to the screen (code ${code}) · ${sent} readings`, `يرسل للشاشة (الرمز ${code}) · ${sent} قراءة`);
+    }, WIN_MS);
+  }
+
+  // ------------------------------------------------------------ this device only
+  async function startLocal(demo) {
+    stopAll(); resetModel(); show("local"); $("btnFault").disabled = true;
+    if (!demo) {
+      if (!(await askMotion())) return setStatus("s-bad", "Motion access was blocked here. Use Demo mode.", "تم منع الوصول للحساس هنا. استخدم الوضع التجريبي.");
+      setStatus("s-learn", "Waiting for the motion sensor… Put the device on the running machine.", "بانتظار الحساس… حط الجهاز على الآلة وهي شغالة.");
+    }
+    const t0 = Date.now();
+    timer = setInterval(() => {
+      if (!demo && !gotMotion && Date.now() - t0 > 3000)
+        return setStatus("s-bad", "No sensor data. Open the app on a phone, allow motion access, or use Demo mode.", "لا توجد بيانات من الحساس. افتح المنصة على جوال واسمح بالوصول للحركة، أو استخدم الوضع التجريبي.");
+      const f = takeWindow(demo); if (f) push(f, () => { if (demo) $("btnFault").disabled = false; });
+    }, WIN_MS);
+  }
+
+  $("tScreen").onclick = startScreen;
+  $("tPhone").onclick = () => { stopAll(); resetModel(); show("phone"); setStatus("s-idle", "Type the code from the screen, then press Start sending.", "اكتب الرمز من الشاشة واضغط ابدأ الإرسال."); };
+  $("tLocal").onclick = () => { stopAll(); resetModel(); show("local"); setStatus("s-idle", "Choose a sensor source.", "اختر مصدر الحساس."); };
+  $("btnSend").onclick = () => startPhone(false);
+  $("btnSendDemo").onclick = () => startPhone(true);
+  $("btnSendFault").onclick = () => { fault = Math.min(fault + 0.35, 1.4); };
+  $("btnPhone").onclick = () => startLocal(false);
+  $("btnDemo").onclick = () => startLocal(true);
   $("btnFault").onclick = () => { fault = Math.min(fault + 0.35, 1.4); };
+
+  const pre = /^\d{6}$/.test(CFG.pair) ? CFG.pair : "";
+  if (pre) { $("codeIn").value = pre; $("tPhone").onclick(); }
+  else startScreen();
   draw();
 })();
 </script>

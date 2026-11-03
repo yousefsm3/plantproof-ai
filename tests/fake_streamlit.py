@@ -41,6 +41,7 @@ class FakeStreamlit:
         self._press = press_buttons
         self.calls: list[tuple[str, tuple, dict]] = log if log is not None else []
         self.session_state = session if session is not None else SessionState()
+        self.query_params: dict[str, str] = {}
 
     # ---------- helpers
     def _child(self) -> "FakeStreamlit":
@@ -50,6 +51,8 @@ class FakeStreamlit:
         for k in (key, label):
             if k is not None and k in self._overrides:
                 return self._overrides[k]
+        if key is not None and key in self.session_state:   # like Streamlit: state set before the widget
+            return self.session_state[key]
         return default
 
     def _log(self, name, *args, **kwargs):

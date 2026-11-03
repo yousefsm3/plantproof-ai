@@ -20,7 +20,10 @@ jobs:
         run: |
           pip install playwright==1.48.0
           python -m playwright install --with-deps chromium
+      - name: Phone-to-screen pairing over MQTT
+        run: python scripts/check_pairing.py
       - name: Open every page
+        if: always()
         env:
           APP_URL: https://plantproof-ai.streamlit.app
         run: python scripts/check_pages.py

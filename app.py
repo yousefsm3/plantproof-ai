@@ -62,7 +62,8 @@ PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_
               "Cost": ":material/payments:", "History": ":material/history:",
               "Handover": ":material/sync_alt:", "AI Early Warning": ":material/monitor_heart:",
               "AI Fact Check": ":material/verified:", "Live Sensor": ":material/sensors:"}
-LINKEDIN_URL = ""   # Yaqen AI company page; the LinkedIn button shows once this is set
+LINKEDIN_URL = "https://www.linkedin.com/company/146908832/"   # Yaqen AI public company page
+APP_URL = "https://plantproof-ai.streamlit.app"
 PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing temp (°C)",
                 "seal_pot_level_pct": "Seal pot level (%)",
                 "suction_pressure_bar": "Suction pressure (bar)",
@@ -833,15 +834,19 @@ def page_fact_check(ctx: Ctx) -> None:
 # ------------------------------------------------------------------ live sensor
 def page_live_sensor(ctx: Ctx) -> None:
     page_header(PAGE_ICONS["Live Sensor"], "Live Sensor",
-                "Turn a phone into a vibration sensor. Put it flat on a running machine (a fan or "
-                "a washing machine), let the model learn normal for 10 seconds, then change how "
-                "the machine runs and watch it detect the change.")
-    st.markdown(with_ar("Open this page on the phone itself, in Safari or Chrome. If the phone "
-                        "blocks the sensor here, Demo mode shows the same model on simulated "
-                        "data."))
+                "Turn a phone into a vibration sensor for this screen. Put it flat on a running "
+                "machine (a fan or a washing machine), let the model learn normal for 10 seconds, "
+                "then change how the machine runs and watch the screen detect it.")
+    st.markdown(with_ar("1. Keep this page open on the iPad or laptop: it shows a code and a QR.")
+                + "  \n" + with_ar("2. Scan the QR with the phone camera and press Start sending.")
+                + "  \n" + with_ar("3. Put the phone on the machine. The screen learns, then alerts "
+                                    "when the vibration changes."))
+    pair = str(st.query_params.get("pair", "")) if hasattr(st, "query_params") else ""
+    pair = pair if pair.isdigit() and len(pair) == 6 else ""
+    body = ((ASSETS / "live_sensor.html").read_text(encoding="utf-8")
+            .replace("__APP_URL__", APP_URL).replace("__PAIR__", pair))
     import streamlit.components.v1 as components
-    components.html((ASSETS / "live_sensor.html").read_text(encoding="utf-8"), height=720,
-                    scrolling=True)
+    components.html(body, height=820, scrolling=True)
 
 
 # ------------------------------------------------------------------- branding
@@ -1277,6 +1282,12 @@ def main() -> None:
     st.sidebar.caption(with_ar("Evidence-first investigations for plant incidents"))
     st.sidebar.button(f"{PAGE_ICONS[ADVISOR]} AI Advisor · المساعد الذكي", key="pp_advisor_side",
                       on_click=open_advisor, type="primary")
+    try:   # a phone that scanned the pairing QR opens straight on the Live Sensor page
+        if st.query_params.get("pair") and not st.session_state.get("pp_pair_opened"):
+            st.session_state["pp_pair_opened"] = True
+            st.session_state["page"] = "Live Sensor"
+    except Exception:
+        pass
     nav = st.sidebar.radio(bi("Navigate"), PAGES, key="page", on_change=close_advisor,
                            format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
     page = ADVISOR if st.session_state.get("view") == ADVISOR else nav

@@ -898,9 +898,9 @@ def ack_alarm() -> None:
 
 OPS_PANELS = (("hyp", ":material/psychology_alt:", "Hypotheses", "Evidence"),
               ("cost", ":material/payments:", "Cost", "Cost"),
-              ("contra", ":material/report:", "Contradictions", "Evidence"),
-              ("miss", ":material/pending_actions:", "Missing evidence", "Evidence"),
-              ("ew", ":material/monitor_heart:", "AI Early Warning", "AI Early Warning"))
+              ("contra", ":material/report:", "Conflicts", "Evidence"),
+              ("miss", ":material/pending_actions:", "Gaps", "Evidence"),
+              ("ew", ":material/monitor_heart:", "Early warning", "AI Early Warning"))
 
 
 def go_page(name: str) -> None:
@@ -950,6 +950,8 @@ def ops_css() -> None:
 .pp-tv {{ color: #FFFFFF; font-size: 1.7rem; font-weight: 800; line-height: 1.25; margin: 2px 0; }}
 .pp-tn {{ color: #F3D3CE; font-size: .8rem; line-height: 1.35; }}
 [data-testid="stElementContainer"]:has(> [data-testid="stMarkdown"] style) {{ display: none; }}
+[data-testid="stMain"] [data-testid="stMarkdownContainer"]:has(.pp-tiles) {{ background: transparent !important; padding: 0 !important; }}
+[class*="st-key-pp_ops_tab"] button {{ min-height: 64px; }}
 </style>""", unsafe_allow_html=True)
 
 

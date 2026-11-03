@@ -30,6 +30,46 @@ def app_frame(page):
     return None
 
 
+def alarm_flow(page, frame) -> bool:
+    """Live Sensor demo -> fault -> red alarm bar -> click -> Operations Room shows LIVE ALARM."""
+    frame.locator('[data-testid="stSidebar"] label').filter(has_text="Live Sensor").first.click()
+    sensor = None
+    for _ in range(30):
+        time.sleep(1)
+        for f in page.frames:
+            try:
+                if f.locator("#tLocal").count():
+                    sensor = f
+            except Exception:
+                pass
+        if sensor:
+            break
+    if sensor is None:
+        print("::error::alarm flow: live sensor widget not found")
+        return False
+    sensor.click("#tLocal")
+    sensor.click("#btnDemo")
+    time.sleep(13)
+    for _ in range(3):
+        sensor.click("#btnFault")
+    time.sleep(3)
+    bar = frame.locator("#pp-live-alarm")
+    print("alarm bar shown:", bar.count() == 1, "| widget:", sensor.text_content("#status").strip()[:60])
+    if bar.count() != 1:
+        return False
+    bar.click()
+    time.sleep(6)
+    text = frame.locator("body").inner_text(timeout=10_000)
+    ok = "LIVE ALARM" in text and "Operations Room" in text
+    print("operations room opened with LIVE ALARM:", ok)
+    if "Operations Room" in os.environ.get("PRINT_SHOTS", ""):
+        jpg = page.screenshot(type="jpeg", quality=55, full_page=True)
+        print("SHOT-BEGIN Alarm")
+        print(base64.b64encode(jpg).decode())
+        print("SHOT-END Alarm")
+    return ok
+
+
 def main() -> int:
     out = Path("page-shots")
     out.mkdir(exist_ok=True)
@@ -70,6 +110,9 @@ def main() -> int:
             except Exception as exc:
                 bad += 1
                 print(f"::error::{name}: could not open ({exc})")
+        if not alarm_flow(page, frame):
+            bad += 1
+            print("::error::alarm flow failed")
         browser.close()
     return 1 if bad else 0
 

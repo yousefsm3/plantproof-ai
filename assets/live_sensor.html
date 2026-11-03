@@ -90,10 +90,11 @@
   </div>
 
   <div id="status" class="status s-idle">Choose how to use the sensor. <span class="ar">اختر طريقة الاستخدام.</span></div>
-  <div class="stats">
+  <div class="stats" style="grid-template-columns:repeat(4,1fr)">
     <div class="stat"><span>Vibration (RMS, m/s²) · الاهتزاز</span><b id="vRms">–</b></div>
     <div class="stat"><span>Anomaly score · درجة الشذوذ</span><b id="vScore">–</b></div>
     <div class="stat"><span>Learned threshold · الحد المتعلَّم</span><b id="vThr">–</b></div>
+    <div class="stat" style="border-color:#F3C4BD;background:#FDEDEB"><span>Alarm limit · حد الإنذار الفوري</span><b style="color:#B42318">55</b></div>
   </div>
   <canvas id="chart" width="900" height="220"></canvas>
   <div class="note">
@@ -110,7 +111,8 @@
   const CFG = { appUrl: "__APP_URL__", pair: "__PAIR__", mode: "__MODE__" };
   const BROKERS = ["wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt"];
   const TOPIC = c => "plantproof-ai/yaqen/live/" + c;
-  const LEARN_N = 20, WIN_MS = 500, KEEP = 120, MARGIN = 1.6, RUN = 3;
+  const LEARN_N = 20, WIN_MS = 500, KEEP = 120, MARGIN = 1.6, RUN = 2;
+  const ALARM_LIMIT = 55;   // anomaly score at or above this raises the alarm immediately
   const $ = id => document.getElementById(id);
   const ctx = $("chart").getContext("2d");
   const AR = s => ' <span class="ar">' + s + "</span>";
@@ -125,7 +127,8 @@
   // A red bar across the top of the whole app; clicking it opens the Operations Room.
   function raiseBanner() {
     try {
-      const d = window.parent.document;
+      let d;
+      try { d = window.parent.document; d.body; } catch (e) { d = window.top.document; }
       if (d.getElementById("pp-live-alarm")) return;
       const a = d.createElement("div");
       a.id = "pp-live-alarm";
@@ -142,7 +145,7 @@
         d.head.appendChild(st);
       }
       d.body.appendChild(a);
-    } catch (e) { /* the browser blocked access to the page: the in-card alert still shows */ }
+    } catch (e) { console.warn("PlantProof: could not show the alarm bar", e); }
   }
 
   // ------------------------------------------------------------ shared model + chart
@@ -186,7 +189,7 @@
       const s = model.score(f); $("vScore").textContent = s.toFixed(2);
       streak = s > model.thr ? streak + 1 : 0;
       points.push({ rms: f[0], score: s });
-      if (streak >= RUN) {
+      if (s >= ALARM_LIMIT || streak >= RUN) {
         if (!alerted && mode !== "phone") raiseBanner();
         alerted = true;
         setStatus("s-bad", `Anomaly detected: vibration no longer matches the learned normal (score ${s.toFixed(1)} vs ${model.thr.toFixed(1)}).`,

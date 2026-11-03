@@ -12,7 +12,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 URL = os.environ.get("APP_URL", "https://plantproof-ai.streamlit.app")
-PAGES = ["Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
+PAGES = ["Overview", "Operations Room", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
          "Blind Test", "Cost", "History", "Handover"]
 ERRORS = ("Traceback", "Error:", "Exception", "encountered an error")
 

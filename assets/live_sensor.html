@@ -64,7 +64,8 @@
       </div>
       <div id="qr"></div>
     </div>
-    <div class="row" style="margin-top:8px"><span class="dot" id="link"></span><span id="linkText">Waiting for the phone… <span class="ar">بانتظار الجوال…</span></span></div>
+    <div class="row" style="margin-top:8px"><button id="btnNewCode">New code <span class="ar">رمز جديد</span></button>
+      <span class="dot" id="link"></span><span id="linkText">Waiting for the phone… <span class="ar">بانتظار الجوال…</span></span></div>
   </div>
 
   <!-- phone: sends its vibration to the screen -->
@@ -106,13 +107,43 @@
 </div>
 <script>
 (() => {
-  const CFG = { appUrl: "__APP_URL__", pair: "__PAIR__" };
+  const CFG = { appUrl: "__APP_URL__", pair: "__PAIR__", mode: "__MODE__" };
   const BROKERS = ["wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt"];
   const TOPIC = c => "plantproof-ai/yaqen/live/" + c;
   const LEARN_N = 20, WIN_MS = 500, KEEP = 120, MARGIN = 1.6, RUN = 3;
   const $ = id => document.getElementById(id);
   const ctx = $("chart").getContext("2d");
   const AR = s => ' <span class="ar">' + s + "</span>";
+
+  // ------------------------------------------------------------ memory across pages
+  // The screen keeps its pairing code and learned model while the user moves between pages.
+  const MEM_KEY = "pp_live_screen";
+  function memGet() { try { return JSON.parse(sessionStorage.getItem(MEM_KEY) || "null"); } catch (e) { return null; } }
+  function memSet(v) { try { sessionStorage.setItem(MEM_KEY, JSON.stringify(v)); } catch (e) {} }
+  function memClear() { try { sessionStorage.removeItem(MEM_KEY); } catch (e) {} }
+
+  // A red bar across the top of the whole app; clicking it opens the Operations Room.
+  function raiseBanner() {
+    try {
+      const d = window.parent.document;
+      if (d.getElementById("pp-live-alarm")) return;
+      const a = d.createElement("div");
+      a.id = "pp-live-alarm";
+      a.setAttribute("role", "alert");
+      a.setAttribute("onclick", "var b=document.querySelector('.st-key-pp_alarm_go button');if(b){b.click();}this.remove();");
+      a.innerHTML = "&#9888; LIVE ALARM: abnormal vibration on P-301 &mdash; open the Operations Room &rarr;" +
+        "<div style='font-weight:500;font-size:15px;opacity:.9;margin-top:2px'>إنذار مباشر: اهتزاز غير طبيعي على المضخة P-301 &mdash; اضغط لفتح غرفة العمليات</div>";
+      a.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:999999;background:#B42318;color:#fff;" +
+        "padding:12px 18px;font:700 18px system-ui,-apple-system,sans-serif;text-align:center;cursor:pointer;" +
+        "box-shadow:0 4px 16px rgba(0,0,0,.35);animation:ppblink 1s ease-in-out infinite alternate";
+      if (!d.getElementById("pp-live-alarm-style")) {
+        const st = d.createElement("style"); st.id = "pp-live-alarm-style";
+        st.textContent = "@keyframes ppblink{from{background:#B42318}to{background:#7A160F}}";
+        d.head.appendChild(st);
+      }
+      d.body.appendChild(a);
+    } catch (e) { /* the browser blocked access to the page: the in-card alert still shows */ }
+  }
 
   // ------------------------------------------------------------ shared model + chart
   let points = [], train = [], model = null, streak = 0, alerted = false;
@@ -124,6 +155,11 @@
     points = []; train = []; model = null; streak = 0; alerted = false;
     $("vRms").textContent = $("vScore").textContent = $("vThr").textContent = "–"; draw();
   }
+  function rebuild(mean, sd, thr) {
+    const k = mean.length;
+    const score = r => Math.sqrt(r.reduce((s, x, j) => s + ((x - mean[j]) / sd[j]) ** 2, 0) / k);
+    return { score, thr, mean, sd };
+  }
   function fit(rows) {
     const k = rows[0].length, mean = [], sd = [];
     for (let j = 0; j < k; j++) {
@@ -131,8 +167,9 @@
       const v = col.reduce((s, x) => s + (x - m) ** 2, 0) / Math.max(1, col.length - 1);
       mean.push(m); sd.push(Math.max(Math.sqrt(v), 1e-3 + 0.05 * Math.abs(m)));
     }
-    const score = r => Math.sqrt(r.reduce((s, x, j) => s + ((x - mean[j]) / sd[j]) ** 2, 0) / k);
-    return { score, thr: Math.max(...rows.map(score)) * MARGIN };
+    const m = rebuild(mean, sd, 0);
+    m.thr = Math.max(...rows.map(m.score)) * MARGIN;
+    return m;
   }
   function push(f, onFirstModel) {           // f = [rms, peak]
     $("vRms").textContent = f[0].toFixed(2);
@@ -150,6 +187,7 @@
       streak = s > model.thr ? streak + 1 : 0;
       points.push({ rms: f[0], score: s });
       if (streak >= RUN) {
+        if (!alerted && mode !== "phone") raiseBanner();
         alerted = true;
         setStatus("s-bad", `Anomaly detected: vibration no longer matches the learned normal (score ${s.toFixed(1)} vs ${model.thr.toFixed(1)}).`,
                   "تم اكتشاف سلوك غير طبيعي: الاهتزاز لم يعد يطابق الطبيعي الذي تعلّمه النموذج.", true);
@@ -237,7 +275,7 @@
     }
     throw new Error("no broker");
   }
-  let timer = null, client = null;
+  let timer = null, client = null, mode = null;
   function stopAll() {
     if (timer) clearInterval(timer); timer = null;
     window.removeEventListener("devicemotion", onMotion);
@@ -251,8 +289,11 @@
 
   // ------------------------------------------------------------ screen mode
   async function startScreen() {
-    stopAll(); resetModel(); show("screen");
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    stopAll(); resetModel(); show("screen"); mode = "screen";
+    const saved = memGet();
+    const code = saved && saved.code ? saved.code : String(Math.floor(100000 + Math.random() * 900000));
+    if (saved && saved.model) { model = rebuild(saved.model.mean, saved.model.sd, saved.model.thr); $("vThr").textContent = model.thr.toFixed(2); }
+    memSet({ code, model: saved && saved.model ? saved.model : null });
     $("code").textContent = code;
     const url = CFG.appUrl + (CFG.appUrl.includes("?") ? "&" : "?") + "pair=" + code;
     loadScript("https://unpkg.com/qrcode-generator@1.4.4/qrcode.js").then(() => {
@@ -267,11 +308,11 @@
     setStatus("s-idle", "Ready. Waiting for the phone to start sending.", "جاهز. بانتظار الجوال يبدأ الإرسال.");
     client.on("message", (_t, buf) => {
       let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
-      if (m.reset) { resetModel(); return; }
+      if (m.reset) { resetModel(); memSet({ code, model: null }); return; }
       last = Date.now();
       $("link").classList.add("live");
       $("linkText").innerHTML = "Phone connected" + AR("الجوال متصل");
-      push([m.r, m.p]);
+      push([m.r, m.p], () => memSet({ code, model: { mean: model.mean, sd: model.sd, thr: model.thr } }));
     });
     timer = setInterval(() => {
       if (last && Date.now() - last > 3000) {
@@ -283,7 +324,7 @@
 
   // ------------------------------------------------------------ phone mode
   async function startPhone(demo) {
-    stopAll(); resetModel(); show("phone");
+    stopAll(); resetModel(); show("phone"); mode = "phone";
     const code = ($("codeIn").value || "").replace(/\D/g, "");
     if (code.length !== 6) return setStatus("s-bad", "Type the 6-digit code shown on the screen.", "اكتب الرمز المكوّن من 6 أرقام الظاهر على الشاشة.");
     if (!demo && !(await askMotion()))
@@ -307,7 +348,7 @@
 
   // ------------------------------------------------------------ this device only
   async function startLocal(demo) {
-    stopAll(); resetModel(); show("local"); $("btnFault").disabled = true;
+    stopAll(); resetModel(); show("local"); mode = "local"; $("btnFault").disabled = true;
     if (!demo) {
       if (!(await askMotion())) return setStatus("s-bad", "Motion access was blocked here. Use Demo mode.", "تم منع الوصول للحساس هنا. استخدم الوضع التجريبي.");
       setStatus("s-learn", "Waiting for the motion sensor… Put the device on the running machine.", "بانتظار الحساس… حط الجهاز على الآلة وهي شغالة.");
@@ -321,6 +362,7 @@
   }
 
   $("tScreen").onclick = startScreen;
+  $("btnNewCode").onclick = () => { memClear(); startScreen(); };
   $("tPhone").onclick = () => { stopAll(); resetModel(); show("phone"); setStatus("s-idle", "Type the code from the screen, then press Start sending.", "اكتب الرمز من الشاشة واضغط ابدأ الإرسال."); };
   $("tLocal").onclick = () => { stopAll(); resetModel(); show("local"); setStatus("s-idle", "Choose a sensor source.", "اختر مصدر الحساس."); };
   $("btnSend").onclick = () => startPhone(false);
@@ -330,7 +372,13 @@
   $("btnDemo").onclick = () => startLocal(true);
   $("btnFault").onclick = () => { fault = Math.min(fault + 0.35, 1.4); };
 
-  const pre = /^\d{6}$/.test(CFG.pair) ? CFG.pair : "";
+  if (CFG.mode === "ops") {
+    document.querySelector(".tabs").classList.add("hide");
+    document.querySelectorAll(".note").forEach(n => n.classList.add("hide"));
+    $("qr").classList.add("hide");
+    $("chart").style.height = "150px";
+  }
+  const pre = /^\d{6}$/.test(CFG.pair) && CFG.mode !== "ops" ? CFG.pair : "";
   if (pre) { $("codeIn").value = pre; $("tPhone").onclick(); }
   else startScreen();
   draw();

@@ -223,6 +223,17 @@ AR: dict[str, str] = {
     '1. Keep this page open on the iPad or laptop: it shows a code and a QR.': '1. خلّ هذه الصفحة مفتوحة على الآيباد أو اللابتوب: تظهر فيها رمز ورمز QR.',
     '2. Scan the QR with the phone camera and press Start sending.': '2. صوّر رمز QR بكاميرا الجوال واضغط «ابدأ الإرسال».',
     '3. Put the phone on the machine. The screen learns, then alerts when the vibration changes.': '3. حط الجوال على الآلة. الشاشة تتعلّم، وبعدها تنبّه إذا تغيّر الاهتزاز.',
+    'Operations Room': 'غرفة العمليات',
+    'Acknowledge': 'تم الاطلاع',
+    'No live alarm. The live monitor below is watching.': 'لا يوجد إنذار مباشر. المراقبة المباشرة شغالة تحت.',
+    'Live monitor': 'المراقبة المباشرة',
+    'What the evidence says': 'وش تقول الأدلة',
+    'Details': 'التفاصيل',
+    'Do this now': 'سوّ هذا الحين',
+    'Before restart': 'قبل إعادة التشغيل',
+    'Nothing blocking a restart.': 'لا يوجد ما يمنع إعادة التشغيل.',
+    'Key points': 'رؤوس أقلام',
+    'About this demo': 'عن المنصة',
     # --- what if
     "What If simulations": "محاكاة ماذا لو",
     "Changes are applied to a copy of the data. Original observations are never modified - each run proves this with a fingerprint check.":

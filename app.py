@@ -53,7 +53,7 @@ from plantproof.translations import ar, bi, bi_plain
 st.set_page_config(page_title="PlantProof AI", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="expanded")
 
-PAGES = ("Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
+PAGES = ("Overview", "Operations Room", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
          "Blind Test", "Cost", "History", "Handover")
 ADVISOR = "Advisor"   # opened from its own highlighted button, not from the page list
 PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_search:",
@@ -61,7 +61,8 @@ PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_
               "What If": ":material/science:", "Blind Test": ":material/fact_check:",
               "Cost": ":material/payments:", "History": ":material/history:",
               "Handover": ":material/sync_alt:", "AI Early Warning": ":material/monitor_heart:",
-              "AI Fact Check": ":material/verified:", "Live Sensor": ":material/sensors:"}
+              "AI Fact Check": ":material/verified:", "Live Sensor": ":material/sensors:",
+              "Operations Room": ":material/crisis_alert:"}
 LINKEDIN_URL = "https://www.linkedin.com/company/146908832/"   # Yaqen AI public company page
 APP_URL = "https://plantproof-ai.streamlit.app"
 PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing temp (°C)",
@@ -337,6 +338,12 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
 .pp-li {{ background: #0A66C2; color: #FFFFFF !important; text-decoration: none !important;
   font-weight: 700; font-size: .85rem; padding: 5px 12px; border-radius: 999px; }}
 .pp-li:hover {{ filter: brightness(1.1); }}
+.st-key-pp_alarm_go {{ display: none !important; }}
+.st-key-pp_ops_alarm {{ background: #FDEDEB !important; border: 2px solid {ALERT} !important;
+  border-left: 8px solid {ALERT} !important; }}
+.st-key-pp_ops_alarm h3 {{ color: {ALERT} !important; }}
+.st-key-pp_ops_top {{ border-left: 6px solid {PETROL} !important; background: #F1F8F6 !important; }}
+.st-key-pp_keypoints {{ border-left: 6px solid {COPPER} !important; }}
 .pp-name {{ font-size: 1.25rem; font-weight: 700; color: #0B2E2D; letter-spacing: .2px; }}
 .pp-name span {{ color: {COPPER}; }}
 </style>
@@ -435,74 +442,92 @@ def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
 
 
 # --------------------------------------------------------------------------- pages
+def headlines(findings, key: str, empty: str) -> None:
+    """One short line per finding; the full detail opens on click."""
+    if not findings:
+        st.success(with_ar(empty))
+        return
+    for f in findings:
+        with st.expander(f"{f.title} {gray(ar(f.title))}"):
+            st.markdown(f.detail)
+            st.caption(f"{bi('Source records')}: {ids_text(f.record_ids)}")
+
+
+def why_line(a) -> tuple[str, str]:
+    """The strongest supporting reason for a hypothesis, as one short line."""
+    if a.supporting:
+        f = a.supporting[0]
+        return f.title, ar(f.title)
+    if a.refuting:
+        f = a.refuting[0]
+        return f"Against: {f.title}", f"ضدها: {ar(f.title) or f.title}"
+    return "No matching evidence", "لا توجد أدلة مطابقة"
+
+
 def page_overview(ctx: Ctx) -> None:
     r, top = ctx.result, ctx.result.top
     st.title(f":material/factory: {bi(ctx.meta['asset_name'])}")
     st.caption(f"{bi(ctx.meta['title'])} · {bi('analysis window')} "
                f"{r.window_start.replace('T', ' ')} → {r.window_end.replace('T', ' ')}")
     st.info(with_ar(ctx.meta["summary"]))
-    ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
-    if ew and ew.warned_before_alarm:
-        h = f"{ew.lead_hours:g}"
-        st.success(f"**AI early warning:** the model flagged unusual behaviour **{h} hours** before "
-                   f"the first alarm. See the AI Early Warning page.  \n"
-                   + gray(f"إنذار مبكر بالذكاء الاصطناعي: النموذج لاحظ سلوكًا غير طبيعي قبل أول إنذار بـ {h} ساعة."),
-                   icon=":material/monitor_heart:")
 
     c1, c2, c3, c4 = st.columns(4)
     with c1.container(key="pp_kpi_records"):
         st.metric(bi("Records analysed"), r.record_count)
     with c2.container(key="pp_kpi_contra"):
-        st.metric(bi("Contradictions"), len(r.contradictions),
-                  help=with_ar("Records that conflict with each other. Resolve before restart."))
+        st.metric(bi("Contradictions"), len(r.contradictions))
     with c3.container(key="pp_kpi_miss"):
-        st.metric(bi("Missing evidence"), len(r.missing),
-                  help=with_ar("Evidence a hypothesis needs that is absent or out of date."))
+        st.metric(bi("Missing evidence"), len(r.missing))
     if top:
         with c4.container(key="pp_kpi_lead"):
             st.metric(bi("Leading hypothesis"), top.name,
-                      f"{pct(top.confidence)} · {top.confidence_label} · {ar(top.name)}",
-                      delta_color="off")
+                      f"{pct(top.confidence)} · {ar(top.name)}", delta_color="off")
 
+    # ---- key points: one line each
+    ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
+    pts = []
+    if top:
+        en, ar_ = why_line(top)
+        pts.append((f"**Most likely cause:** {top.name} ({pct(top.confidence)}), mainly because: {en}.",
+                    f"السبب الأرجح: {ar(top.name)} ({pct(top.confidence)})، والسبب الأهم: {ar_}."))
+    if ew and ew.warned_before_alarm:
+        pts.append((f"**AI early warning:** unusual behaviour flagged {ew.lead_hours:g} h before the first alarm.",
+                    f"الإنذار المبكر: النموذج لاحظ سلوكًا غير طبيعي قبل أول إنذار بـ {ew.lead_hours:g} ساعة."))
+    if r.contradictions:
+        pts.append((f"**{len(r.contradictions)} records disagree** with each other: resolve before restart.",
+                    f"{len(r.contradictions)} سجلات متناقضة: لازم تُحل قبل إعادة التشغيل."))
+    if r.missing:
+        pts.append((f"**{len(r.missing)} checks are missing:** "
+                    + ", ".join(f.title.replace("Missing: ", "") for f in r.missing) + ".",
+                    f"{len(r.missing)} فحوصات ناقصة."))
     if top:
         t = cost_model.estimate(top.hypothesis_id, ctx.costs).totals
-        st.markdown(f"**{bi('Estimated cost impact if confirmed')}** ({top.name}): "
-                    f"{money(t['low'], ctx)} – {money(t['high'], ctx)} "
-                    f"(base {money(t['base'], ctx)}). Illustrative figures; see the Cost page.  \n"
-                    + gray("أرقام توضيحية، التفاصيل في صفحة التكلفة."))
+        pts.append((f"**Cost if confirmed:** about {money(t['base'], ctx)} "
+                    f"(range {money(t['low'], ctx)} – {money(t['high'], ctx)}).",
+                    f"التكلفة إذا تأكد السبب: حوالي {money(t['base'], ctx)}."))
+    with st.container(border=True, key="pp_keypoints"):
+        st.markdown(f"#### :material/bolt: {bi('Key points')}")
+        st.markdown("\n".join(f"- {en}  \n  {gray(ar_)}" for en, ar_ in pts))
 
-    left, right = st.columns([3, 2])
-    with left:
-        st.subheader(bi("Sensor trends"))
+    # ---- details on demand
+    a, b = st.columns(2)
+    with a:
+        st.markdown(f"**:material/report: {bi('Contradictions')}** {gray('اضغط للتفاصيل')}")
+        headlines(r.contradictions, "ov_c", "No contradictions detected.")
+    with b:
+        st.markdown(f"**:material/pending_actions: {bi('Missing evidence')}** {gray('اضغط للتفاصيل')}")
+        headlines(r.missing, "ov_m", "All required evidence is present.")
+
+    with st.expander(f":material/show_chart: {bi('Sensor trends')}"):
         highlight = {rid for c in r.contradictions for rid in c.record_ids}
         params = [p for p in PARAM_LABELS if any(o.parameter == p for o in ctx.obs)]
         tabs = st.tabs([bi(PARAM_LABELS[p]) for p in params])
         for tab, p in zip(tabs, params):
             with tab:
                 st.plotly_chart(trend_chart(ctx.obs, p, ctx, highlight), key=f"trend_{p}")
-    with right:
-        st.subheader(bi("Hypothesis confidence"))
+    with st.expander(f":material/bar_chart: {bi('Hypothesis confidence')}"):
         st.plotly_chart(confidence_chart(r.assessments), key="overview_conf")
         st.caption(with_ar("Rule-based and explainable. See the Evidence page for the working."))
-
-    a, b = st.columns(2)
-    with a:
-        st.subheader(f":material/report: {bi('Contradictions')}")
-        if not r.contradictions:
-            st.success(with_ar("No contradictions detected."))
-        for f in r.contradictions:
-            with st.container(border=True, key=f"pp_contra_ov_{f.finding_id}"):
-                show_finding(f)
-    with b:
-        st.subheader(f":material/pending_actions: {bi('Missing evidence')}")
-        if not r.missing:
-            st.success(with_ar("All required evidence is present."))
-        for f in r.missing:
-            with st.container(border=True, key=f"pp_miss_ov_{f.finding_id}"):
-                hyps = ", ".join(ctx.cfg.hypothesis(h).name for h in f.hypothesis_ids)
-                hyps_ar = "، ".join(ar(ctx.cfg.hypothesis(h).name) for h in f.hypothesis_ids)
-                st.markdown(f"**{f.finding_id} · {f.title}** {gray(ar(f.title))}  \n{f.detail}")
-                st.caption(f"{bi('Needed to test')}: {hyps} {gray(hyps_ar)}")
 
 
 def page_evidence(ctx: Ctx) -> None:
@@ -511,14 +536,7 @@ def page_evidence(ctx: Ctx) -> None:
                 "Every conclusion below links to the source record IDs it is based on.")
 
     st.subheader(bi("Hypothesis ranking"))
-    st.dataframe([{
-        "Rank · الترتيب": a.rank, "Hypothesis · الفرضية": bi_plain(a.name),
-        "Confidence · الثقة": pct(a.confidence),
-        "Level · المستوى": bi_plain(a.confidence_label),
-        "Support ratio · نسبة الدعم": pct(a.support_ratio),
-        "Evidence coverage · تغطية الأدلة": pct(a.coverage),
-        "Contested factor · معامل التعارض": a.contested_factor,
-    } for a in r.assessments], hide_index=True)
+    st.caption(gray("كل فرضية بسطر واحد. اضغط عليها للتفاصيل."))
 
     with st.expander(bi("How confidence is calculated")):
         cfg = ctx.cfg
@@ -536,8 +554,8 @@ Rules, weights and thresholds live in `config/hypotheses.json`.
 """)
 
     for a in r.assessments:
-        with st.expander(f"#{a.rank} {bi(a.name)} — {pct(a.confidence)} ({bi(a.confidence_label)})",
-                         expanded=a.rank == 1):
+        why_en, why_ar = why_line(a)
+        with st.expander(f"#{a.rank} {bi(a.name)} — **{pct(a.confidence)}** · {why_en} {gray(why_ar)}"):
             st.caption(ctx.cfg.hypothesis(a.hypothesis_id).description)
             m1, m2, m3 = st.columns(3)
             m1.metric(bi("Support ratio"), pct(a.support_ratio),
@@ -563,13 +581,16 @@ Rules, weights and thresholds live in `config/hypotheses.json`.
             st.markdown("\n".join(f"- {x} {gray(ar(x))}" for x in a.recommended_actions) or "—")
 
     st.subheader(bi("Contradictions"))
-    if not r.contradictions:
-        st.success(with_ar("No contradictions detected."))
-    for f in r.contradictions:
-        with st.container(border=True, key=f"pp_contra_ev_{f.finding_id}"):
-            show_finding(f)
+    headlines(r.contradictions, "ev_c", "No contradictions detected.")
 
-    st.subheader(bi("Trace a record"))
+    with st.expander(f":material/search: {bi('Trace a record')}"):
+        _trace_and_records(ctx)
+    with st.expander(f":material/save: {bi('Save this investigation')}"):
+        _save_investigation(ctx)
+
+
+def _trace_and_records(ctx: Ctx) -> None:
+    r = ctx.result
     referenced = sorted({rid for f in r.all_findings() for rid in f.record_ids})
     by_id = {o.record_id: o for o in ctx.obs}
     if referenced:
@@ -582,13 +603,15 @@ Rules, weights and thresholds live in `config/hypotheses.json`.
             st.markdown(f"**{bi('Used by')}:** "
                         + ", ".join(f"{f.finding_id} ({f.title})" for f in used_by))
 
-    st.subheader(bi("All source records"))
+    st.markdown(f"**{bi('All source records')}**")
     present = [s for s in SOURCE_TYPES if any(o.source_type == s for o in ctx.obs)]
     chosen = st.multiselect(bi("Record types"), present, format_func=source_plain,
                             default=[s for s in present if s != "sensor"], key="ev_types")
     st.dataframe(records_table([o for o in ctx.obs if o.source_type in chosen]), hide_index=True)
 
-    st.subheader(bi("Save this investigation"))
+
+def _save_investigation(ctx: Ctx) -> None:
+    r = ctx.result
     with st.form("save_investigation"):
         title = st.text_input(bi("Title"), value=f"P-301 trip investigation ({ctx.sid})")
         role = st.text_input(bi("Analyst role"), placeholder="e.g. Reliability engineer",
@@ -842,11 +865,75 @@ def page_live_sensor(ctx: Ctx) -> None:
                 + "  \n" + with_ar("3. Put the phone on the machine. The screen learns, then alerts "
                                     "when the vibration changes."))
     pair = str(st.query_params.get("pair", "")) if hasattr(st, "query_params") else ""
-    pair = pair if pair.isdigit() and len(pair) == 6 else ""
+    live_monitor(pair if pair.isdigit() and len(pair) == 6 else "", "full", 820)
+
+
+def live_monitor(pair: str, mode: str, height: int) -> None:
     body = ((ASSETS / "live_sensor.html").read_text(encoding="utf-8")
-            .replace("__APP_URL__", APP_URL).replace("__PAIR__", pair))
+            .replace("__APP_URL__", APP_URL).replace("__PAIR__", pair).replace("__MODE__", mode))
     import streamlit.components.v1 as components
-    components.html(body, height=820, scrolling=True)
+    components.html(body, height=height, scrolling=True)
+
+
+# -------------------------------------------------------------- operations room
+def go_ops_room() -> None:
+    """Called by the live sensor's red alarm bar (it clicks a hidden button)."""
+    st.session_state["view"] = None
+    st.session_state["page"] = "Operations Room"
+    st.session_state["pp_live_alarm"] = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
+
+
+def ack_alarm() -> None:
+    st.session_state.pop("pp_live_alarm", None)
+
+
+def page_ops_room(ctx: Ctx) -> None:
+    r, top = ctx.result, ctx.result.top
+    st.title(f"{PAGE_ICONS['Operations Room']} {bi('Operations Room')}")
+    alarm = st.session_state.get("pp_live_alarm")
+    if alarm:
+        with st.container(border=True, key="pp_ops_alarm"):
+            st.markdown(f"### :material/warning: LIVE ALARM · {ctx.meta['asset_name']}  \n"
+                        f"Abnormal vibration detected by the live sensor at **{alarm}**.  \n"
+                        + gray(f"إنذار مباشر: الحساس اكتشف اهتزازًا غير طبيعي الساعة {alarm}."))
+            st.button(f":material/done: {bi('Acknowledge')}", key="pp_ack", on_click=ack_alarm)
+    else:
+        st.success(with_ar("No live alarm. The live monitor below is watching."),
+                   icon=":material/check_circle:")
+
+    with st.expander(f":material/sensors: {bi('Live monitor')}", expanded=True):
+        live_monitor("", "ops", 430)
+
+    st.markdown(f"#### {bi('What the evidence says')}")
+    cols = st.columns(3)
+    for col, a in zip(cols, r.assessments[:3]):
+        why_en, why_ar = why_line(a)
+        key = "pp_ops_top" if a.rank == 1 else f"pp_ops_h{a.rank}"
+        with col.container(border=True, key=key):
+            st.markdown(f"**#{a.rank} {a.name}**  \n{gray(ar(a.name))}")
+            st.markdown(f"## {pct(a.confidence)}")
+            st.caption(f"{why_en}  \n{gray(why_ar)}")
+            with st.popover(bi("Details")):
+                for f in a.supporting[:4]:
+                    st.markdown(f"- :green[:material/add:] {f.title} {gray(ar(f.title))}")
+                for f in a.refuting[:3]:
+                    st.markdown(f"- :red[:material/remove:] {f.title} {gray(ar(f.title))}")
+                st.caption(f"{bi('Source records')}: {ids_text(a.record_ids, 6)}")
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown(f"#### :material/task_alt: {bi('Do this now')}")
+        if top:
+            st.markdown("\n".join(f"{i}. {x}  \n   {gray(ar(x))}"
+                                   for i, x in enumerate(top.recommended_actions, 1)))
+    with right:
+        st.markdown(f"#### :material/block: {bi('Before restart')}")
+        items = [(f.title, ar(f.title)) for f in r.contradictions + r.missing]
+        if items:
+            st.markdown("\n".join(f"- {en}  \n  {gray(a_)}" for en, a_ in items))
+        else:
+            st.success(with_ar("Nothing blocking a restart."))
+        st.caption(gray("التفاصيل في صفحة الأدلة."))
 
 
 # ------------------------------------------------------------------- branding
@@ -1294,12 +1381,12 @@ def main() -> None:
     titles = {s["id"]: s["title"] for s in index}
     sid = st.sidebar.selectbox(bi("Scenario"), list(titles),
                                format_func=lambda k: bi_plain(titles[k]), key="scenario")
-    st.sidebar.divider()
-    st.sidebar.warning(with_ar(PERSISTENCE_SHORT), icon=":material/save:")
-    st.sidebar.caption(f"v{__version__} · "
-                       + with_ar("Synthetic demo data only · Rule-based analysis, "
-                                 "no external AI or API keys."))
-    st.sidebar.caption(f"{DISCLAIMER}  \n{gray(DISCLAIMER_AR)}")
+    with st.sidebar.expander(bi("About this demo")):
+        st.warning(with_ar(PERSISTENCE_SHORT), icon=":material/save:")
+        st.caption(f"v{__version__} · "
+                   + with_ar("Synthetic demo data only · Rule-based analysis, "
+                             "no external AI or API keys."))
+        st.caption(f"{DISCLAIMER}  \n{gray(DISCLAIMER_AR)}")
 
     meta = next(s for s in index if s["id"] == sid)
     obs = store.observations(sid)
@@ -1308,6 +1395,8 @@ def main() -> None:
         obs = store.observations(sid)
     ctx = Ctx(store, cfg, costs, meta, sid, obs, analyse(obs, cfg, sid))
 
+    with st.container(key="pp_alarm_go"):       # clicked by the live sensor's red alarm bar
+        st.button("Live alarm", key="pp_alarm_btn", on_click=go_ops_room)
     if page != ADVISOR:
         with st.container(key="pp_fab"):
             st.button(f"{PAGE_ICONS[ADVISOR]} Ask the AI Advisor · اسأل المساعد",
@@ -1316,7 +1405,8 @@ def main() -> None:
      "What If": page_whatif,
      "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,
      "Handover": page_handover, "AI Early Warning": page_early_warning,
-     "AI Fact Check": page_fact_check, "Live Sensor": page_live_sensor}[page](ctx)
+     "AI Fact Check": page_fact_check, "Live Sensor": page_live_sensor,
+     "Operations Room": page_ops_room}[page](ctx)
     yaqen_footer()
 
 

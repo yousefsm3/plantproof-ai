@@ -15,7 +15,7 @@ from tests.fake_streamlit import (FakeStreamlit, RerunSignal, SessionState,
                                   make_components_modules, make_plotly_modules)
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
-PAGES = ("Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
+PAGES = ("Overview", "Operations Room", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
          "Blind Test", "Cost", "History", "Handover")
 
 
@@ -39,6 +39,7 @@ class AppSmokeTest(unittest.TestCase):
         overrides = dict(overrides)
         overrides.setdefault("pp_advisor_side", False)   # "press all" must not jump pages
         overrides.setdefault("pp_advisor_fab", False)
+        overrides.setdefault("pp_alarm_btn", False)
         session = session if session is not None else SessionState()
         if overrides.get("page") == "Advisor":       # Advisor opens from its own button
             overrides["page"] = "Overview"
@@ -156,6 +157,15 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(session.get("page"), "Live Sensor")
         self.assertTrue(any(c[0] == "components.html" for c in fake.calls))
         self.assertEqual(self.errors(fake), [])
+
+    def test_live_alarm_opens_operations_room(self):
+        session = SessionState()
+        self.run_app({"page": "Live Sensor", "scenario": "C", "pp_alarm_btn": True}, session=session)
+        self.assertEqual(session.get("page"), "Operations Room")
+        self.assertTrue(session.get("pp_live_alarm"))
+        fake = self.run_app({"scenario": "C"}, session=session)
+        self.assertEqual(self.errors(fake), [])
+        self.assertTrue(any("LIVE ALARM" in str(c[1]) for c in fake.calls))
 
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})

@@ -887,53 +887,170 @@ def ack_alarm() -> None:
     st.session_state.pop("pp_live_alarm", None)
 
 
+OPS_PANELS = (("hyp", ":material/psychology_alt:", "Hypotheses", "Evidence"),
+              ("cost", ":material/payments:", "Cost", "Cost"),
+              ("contra", ":material/report:", "Contradictions", "Evidence"),
+              ("miss", ":material/pending_actions:", "Missing evidence", "Evidence"),
+              ("ew", ":material/monitor_heart:", "AI Early Warning", "AI Early Warning"))
+
+
+def go_page(name: str) -> None:
+    st.session_state["view"] = None
+    st.session_state["page"] = name
+
+
+def set_ops_panel(panel: str) -> None:
+    st.session_state["ops_panel"] = None if st.session_state.get("ops_panel") == panel else panel
+
+
+def ops_css() -> None:
+    """War-room look, only on this page."""
+    st.markdown(f"""<style>
+[data-testid="stAppViewContainer"] {{ background: radial-gradient(1200px 500px at 50% -10%, #3A0B08 0%, #170605 55%, #0D0303 100%) !important; }}
+[data-testid="stMain"] h1, [data-testid="stMain"] h2, [data-testid="stMain"] h3, [data-testid="stMain"] h4 {{ color: #FFE9E6 !important; }}
+[data-testid="stMain"] [data-testid="stHeading"] h1 {{ background: transparent !important; }}
+.st-key-pp_ops_head {{ background: linear-gradient(90deg, #7A160F, #B42318) !important; border: 1px solid #FF6B5A !important;
+  box-shadow: 0 0 0 1px #3A0B08, 0 10px 30px rgba(180,35,24,.45) !important; }}
+.st-key-pp_ops_head.pp-live, .st-key-pp_ops_head:has(.pp-alarm-on) {{ animation: ppglow 1.2s ease-in-out infinite alternate; }}
+@keyframes ppglow {{ from {{ box-shadow: 0 0 0 0 rgba(255,80,60,.0), 0 10px 30px rgba(180,35,24,.45); }}
+                     to   {{ box-shadow: 0 0 0 6px rgba(255,80,60,.35), 0 10px 30px rgba(180,35,24,.6); }} }}
+.st-key-pp_ops_head * {{ color: #FFFFFF !important; background: transparent !important; }}
+[class*="st-key-pp_ops_kpi"] [data-testid="stMetric"] {{ background: #1E0807 !important; border: 1px solid #5A1A14 !important;
+  border-left: 5px solid #E5483A !important; }}
+[class*="st-key-pp_ops_kpi"] [data-testid="stMetricLabel"], [class*="st-key-pp_ops_kpi"] [data-testid="stMetricLabel"] * {{ color: #FFB4A8 !important; }}
+[class*="st-key-pp_ops_kpi"] [data-testid="stMetricValue"], [class*="st-key-pp_ops_kpi"] [data-testid="stMetricValue"] * {{ color: #FFFFFF !important; }}
+[class*="st-key-pp_ops_kpi"] [data-testid="stMetricDelta"] * {{ color: #FFB4A8 !important; }}
+[class*="st-key-pp_ops_card"] {{ background: #FFFFFF !important; border: 1px solid #5A1A14 !important;
+  border-top: 5px solid #B42318 !important; }}
+[class*="st-key-pp_ops_tab"] button {{ background: #2A0B09 !important; color: #FFE9E6 !important;
+  border: 1px solid #7A2A22 !important; width: 100%; font-weight: 700 !important; }}
+[class*="st-key-pp_ops_tab"] button * {{ color: #FFE9E6 !important; }}
+[class*="st-key-pp_ops_tab_on"] button {{ background: #B42318 !important; border-color: #FF8A7A !important; }}
+.st-key-pp_ops_case_low [data-testid="stMetric"] {{ border-left-color: #1E7B4F !important; }}
+.st-key-pp_ops_case_base [data-testid="stMetric"] {{ border-left-color: #C8844A !important; }}
+.st-key-pp_ops_case_high [data-testid="stMetric"] {{ border-left-color: #B42318 !important; }}
+[data-testid="stMain"] .pp-yaqen {{ background: #FFFFFF; }}
+</style>""", unsafe_allow_html=True)
+
+
+def _ops_panel(ctx: Ctx, panel: str) -> None:
+    r, top = ctx.result, ctx.result.top
+    if panel == "hyp":
+        cols = st.columns(3)
+        for col, a in zip(cols, r.assessments[:3]):
+            why_en, why_ar = why_line(a)
+            with col.container(key=f"pp_ops_kpi_h{a.rank}"):
+                st.metric(f"#{a.rank} {a.name}", pct(a.confidence), ar(a.name), delta_color="off")
+            col.caption(f"{why_en}  \n{gray(why_ar)}")
+    elif panel == "cost" and top:
+        est = cost_model.estimate(top.hypothesis_id, ctx.costs).totals
+        st.caption(f"{bi('If the leading cause is confirmed')}: {top.name} {gray(ar(top.name))}")
+        cols = st.columns(3)
+        for col, case in zip(cols, cost_model.CASES):
+            with col.container(key=f"pp_ops_case_{case}"):
+                st.metric(f"{case.title()} · {CASE_AR[case]}", money(est[case], ctx))
+    elif panel == "contra":
+        headlines(r.contradictions, "ops_c", "No contradictions detected.")
+    elif panel == "miss":
+        headlines(r.missing, "ops_m", "All required evidence is present.")
+    elif panel == "ew":
+        ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
+        if ew and ew.first_warning:
+            c1, c2, c3 = st.columns(3)
+            c1.metric(bi("First AI warning"), ew.first_warning.timestamp.replace("T", " ")[5:16])
+            c2.metric(bi("First alarm"), ew.first_alarm[0].replace("T", " ")[5:16] if ew.first_alarm else "—")
+            c3.metric(bi("Warning lead time"), f"{ew.lead_hours:g} h" if ew.lead_hours else "Same hour")
+        else:
+            st.info(with_ar("No unusual behaviour detected in this window."))
+    target = next(t for k, _i, _n, t in OPS_PANELS if k == panel)
+    st.button(f":material/open_in_new: {bi('Full details')}", key=f"pp_ops_go_{panel}",
+              on_click=go_page, args=(target,))
+
+
+def _ops_advisor(ctx: Ctx) -> None:
+    with st.container(border=True, key="pp_ops_card_ai"):
+        st.markdown(f"**{PAGE_ICONS[ADVISOR]} {bi('AI Advisor')}**")
+        with st.form("ops_ask", clear_on_submit=True, border=False):
+            q = st.text_input(bi("Ask"), placeholder="مثال: هل الزيت سليم؟", label_visibility="collapsed")
+            sent = st.form_submit_button(bi("Ask"))
+        if sent and q and q.strip():
+            saved = ctx.store.list_history("handover", ctx.sid)
+            st.session_state["ops_answer"] = (ctx.sid, q.strip()[:300], advisor.answer(
+                q.strip()[:300], ctx.obs, ctx.cfg, ctx.result, ctx.costs, ctx.meta,
+                saved[0] if saved else None))
+        last = st.session_state.get("ops_answer")
+        if last and last[0] == ctx.sid:
+            _sid, q, ans = last
+            st.caption(f":material/person: {q}")
+            st.markdown(f"**{ans.title_en}**  \n{gray(ans.title_ar)}")
+            for item in ans.items[:3]:
+                st.markdown(f"- {item.en}  \n  {gray(item.ar)}")
+            if len(ans.items) > 3:
+                st.button(bi("Open the full answer"), key="pp_ops_more", on_click=open_advisor)
+
+
 def page_ops_room(ctx: Ctx) -> None:
     r, top = ctx.result, ctx.result.top
-    st.title(f"{PAGE_ICONS['Operations Room']} {bi('Operations Room')}")
+    ops_css()
     alarm = st.session_state.get("pp_live_alarm")
-    if alarm:
-        with st.container(border=True, key="pp_ops_alarm"):
-            st.markdown(f"### :material/warning: LIVE ALARM · {ctx.meta['asset_name']}  \n"
-                        f"Abnormal vibration detected by the live sensor at **{alarm}**.  \n"
-                        + gray(f"إنذار مباشر: الحساس اكتشف اهتزازًا غير طبيعي الساعة {alarm}."))
-            st.button(f":material/done: {bi('Acknowledge')}", key="pp_ack", on_click=ack_alarm)
-    else:
-        st.success(with_ar("No live alarm. The live monitor below is watching."),
-                   icon=":material/check_circle:")
+    with st.container(border=True, key="pp_ops_head"):
+        h1, h2 = st.columns([4, 1])
+        with h1:
+            if alarm:
+                st.markdown(f'<span class="pp-alarm-on"></span>', unsafe_allow_html=True)
+                st.markdown(f"## :material/crisis_alert: LIVE ALARM · {ctx.meta['asset_name']}")
+                st.markdown(f"Abnormal vibration detected by the live sensor at **{alarm}**. "
+                            f"Line 3 at risk.  \n"
+                            f"إنذار مباشر: الحساس اكتشف اهتزازًا غير طبيعي الساعة {alarm}.")
+            else:
+                st.markdown(f"## :material/crisis_alert: {bi('Operations Room')} · {ctx.meta['asset_name']}")
+                st.markdown(f"{ctx.meta['summary']}  \n{ar(ctx.meta['summary'])}")
+        with h2:
+            if alarm:
+                st.button(f":material/done: {bi('Acknowledge')}", key="pp_ack", on_click=ack_alarm)
 
-    with st.expander(f":material/sensors: {bi('Live monitor')}", expanded=True):
-        live_monitor("", "ops", 430)
+    ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
+    est = cost_model.estimate(top.hypothesis_id, ctx.costs).totals if top else None
+    kpis = [
+        ("Leading hypothesis", f"{pct(top.confidence)}" if top else "—", top.name if top else ""),
+        ("AI early warning", f"{ew.lead_hours:g} h" if ew and ew.warned_before_alarm else "—",
+         "before the first alarm"),
+        ("Contradictions", str(len(r.contradictions)), "records disagree"),
+        ("Missing evidence", str(len(r.missing)), "checks not done"),
+        ("Cost if confirmed", money(est["base"], ctx) if est else "—", "base case"),
+    ]
+    for i, (col, (label, value, note)) in enumerate(zip(st.columns(5), kpis)):
+        with col.container(key=f"pp_ops_kpi_{i}"):
+            st.metric(bi(label), value, note, delta_color="off")
 
-    st.markdown(f"#### {bi('What the evidence says')}")
-    cols = st.columns(3)
-    for col, a in zip(cols, r.assessments[:3]):
-        why_en, why_ar = why_line(a)
-        key = "pp_ops_top" if a.rank == 1 else f"pp_ops_h{a.rank}"
-        with col.container(border=True, key=key):
-            st.markdown(f"**#{a.rank} {a.name}**  \n{gray(ar(a.name))}")
-            st.markdown(f"## {pct(a.confidence)}")
-            st.caption(f"{why_en}  \n{gray(why_ar)}")
-            with st.popover(bi("Details")):
-                for f in a.supporting[:4]:
-                    st.markdown(f"- :green[:material/add:] {f.title} {gray(ar(f.title))}")
-                for f in a.refuting[:3]:
-                    st.markdown(f"- :red[:material/remove:] {f.title} {gray(ar(f.title))}")
-                st.caption(f"{bi('Source records')}: {ids_text(a.record_ids, 6)}")
-
-    left, right = st.columns(2)
+    left, right = st.columns([2, 1])
     with left:
-        st.markdown(f"#### :material/task_alt: {bi('Do this now')}")
-        if top:
-            st.markdown("\n".join(f"{i}. {x}  \n   {gray(ar(x))}"
-                                   for i, x in enumerate(top.recommended_actions, 1)))
+        panel = st.session_state.get("ops_panel", "hyp")
+        for col, (key, icon, name, _t) in zip(st.columns(len(OPS_PANELS)), OPS_PANELS):
+            on = "_on" if panel == key else ""
+            with col.container(key=f"pp_ops_tab{on}_{key}"):
+                st.button(f"{icon} {ar(name)}", key=f"pp_ops_btn_{key}", help=name,
+                          on_click=set_ops_panel, args=(key,))
+        if panel:
+            with st.container(border=True, key="pp_ops_card_panel"):
+                _ops_panel(ctx, panel)
+        with st.container(border=True, key="pp_ops_card_actions"):
+            a, b = st.columns(2)
+            with a:
+                st.markdown(f"**:material/task_alt: {bi('Do this now')}**")
+                if top:
+                    st.markdown("\n".join(f"{n}. {x}  \n   {gray(ar(x))}"
+                                          for n, x in enumerate(top.recommended_actions, 1)))
+            with b:
+                st.markdown(f"**:material/block: {bi('Before restart')}**")
+                items = r.contradictions + r.missing
+                st.markdown("\n".join(f"- {f.title}  \n  {gray(ar(f.title))}" for f in items)
+                            or with_ar("Nothing blocking a restart."))
     with right:
-        st.markdown(f"#### :material/block: {bi('Before restart')}")
-        items = [(f.title, ar(f.title)) for f in r.contradictions + r.missing]
-        if items:
-            st.markdown("\n".join(f"- {en}  \n  {gray(a_)}" for en, a_ in items))
-        else:
-            st.success(with_ar("Nothing blocking a restart."))
-        st.caption(gray("التفاصيل في صفحة الأدلة."))
+        _ops_advisor(ctx)
+        with st.container(border=True, key="pp_ops_card_live"):
+            st.markdown(f"**:material/sensors: {bi('Live monitor')}**")
+            live_monitor("", "ops", 430)
 
 
 # ------------------------------------------------------------------- branding

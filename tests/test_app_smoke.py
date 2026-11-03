@@ -167,6 +167,27 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(self.errors(fake), [])
         self.assertTrue(any("LIVE ALARM" in str(c[1]) for c in fake.calls))
 
+    def test_operations_room_every_panel_and_advisor(self):
+        for sid in ("A", "B", "C"):
+            for panel in ("hyp", "cost", "contra", "miss", "ew"):
+                session = SessionState()
+                session["ops_panel"] = panel
+                session["pp_live_alarm"] = "12:00:00 UTC"
+                fake = self.run_app({"page": "Operations Room", "scenario": sid,
+                                     "Ask :small[:gray[اسأل]]": "هل الزيت سليم؟"},
+                                    session=session)
+                with self.subTest(sid=sid, panel=panel):
+                    self.assertEqual(self.errors(fake), [])
+        asked = SessionState()
+        self.run_app({"page": "Operations Room", "scenario": "C",
+                      "Ask :small[:gray[اسأل]]": "هل الزيت سليم؟"}, press=True, session=asked)
+        self.assertEqual(asked.get("ops_answer")[1], "هل الزيت سليم؟")
+        cost = SessionState()
+        cost["ops_panel"] = "cost"
+        fake = self.run_app({"page": "Operations Room", "scenario": "A"}, session=cost)
+        metrics = [c for c in fake.calls if c[0] == "metric"]
+        self.assertTrue(any("Base" in str(c[1][0]) for c in metrics))
+
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})
         warnings = " ".join(str(c[1]) for c in fake.calls if c[0] == "warning")

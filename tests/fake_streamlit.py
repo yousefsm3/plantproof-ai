@@ -168,11 +168,11 @@ class FakeStreamlit:
         self._log("chat_input", placeholder)
         return self._override(placeholder, key, None)
 
-    def button(self, label, key=None, disabled=False, on_click=None, **kw):
+    def button(self, label, key=None, disabled=False, on_click=None, args=None, kwargs=None, **kw):
         self._log("button", label)
         pressed = False if disabled else self._override(label, key, self._press)
         if pressed and on_click:
-            on_click()
+            on_click(*(args or ()), **(kwargs or {}))
         return pressed
 
     def form_submit_button(self, label="Submit", **kw):

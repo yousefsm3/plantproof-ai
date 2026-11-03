@@ -234,6 +234,14 @@ AR: dict[str, str] = {
     'Nothing blocking a restart.': 'لا يوجد ما يمنع إعادة التشغيل.',
     'Key points': 'رؤوس أقلام',
     'About this demo': 'عن المنصة',
+    'AI Advisor': 'المساعد الذكي',
+    'Ask': 'اسأل',
+    'Open the full answer': 'افتح الإجابة كاملة',
+    'Full details': 'التفاصيل الكاملة',
+    'If the leading cause is confirmed': 'إذا تأكد السبب الأرجح',
+    'AI early warning': 'الإنذار المبكر',
+    'Cost if confirmed': 'التكلفة إذا تأكد',
+    'Hypotheses': 'الاحتمالات',
     # --- what if
     "What If simulations": "محاكاة ماذا لو",
     "Changes are applied to a copy of the data. Original observations are never modified - each run proves this with a fingerprint check.":

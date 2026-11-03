@@ -97,7 +97,7 @@ def hard_limit_flow(page, frame) -> bool:
 
 def _has(f, sel) -> bool:
     try:
-        return f.locator(sel).count() > 0
+        return f.locator(sel).count() > 0 and f.locator(sel).first.is_visible()
     except Exception:
         return False
 

@@ -383,7 +383,6 @@
     catch (e) { return setStatus("s-bad", "Could not reach the messaging service. Check the internet.", "تعذّر الاتصال بخدمة الرسائل. تأكد من الإنترنت."); }
     const topic = TOPIC(code); let sent = 0; const t0 = Date.now();
     client.publish(topic, { reset: 1 });
-    setTimeout(() => client && client.publish(topic, { reset: 1 }), 1500);   // reach a broker that joined late
     timer = setInterval(() => {
       if (!demo && !gotMotion && Date.now() - t0 > 3000)
         return setStatus("s-bad", "No sensor data on this device. Use Send demo vibration.", "لا توجد بيانات من حساس هذا الجهاز. استخدم الاهتزاز التجريبي.");

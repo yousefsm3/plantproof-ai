@@ -38,7 +38,12 @@ def main() -> int:
         phone = b.new_page()
         phone.goto(page_file(code))
         phone.click("#btnSendDemo")
-        time.sleep(14)
+        for _ in range(60):                  # public brokers can be slow to accept a connection
+            time.sleep(1)
+            st = phone.text_content("#status")
+            if "readings" in st and int(st.split("·")[1].split()[0]) >= 26:
+                break
+        time.sleep(2)
         print("phone:", phone.text_content("#status").strip()[:80])
         learned = screen.text_content("#status")
         print("screen after learning:", learned.strip()[:90])

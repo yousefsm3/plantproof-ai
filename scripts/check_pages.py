@@ -70,6 +70,38 @@ def alarm_flow(page, frame) -> bool:
     return ok
 
 
+def hard_limit_flow(page, frame) -> bool:
+    """Feed the device-motion sensor: steady for 11 s, then a vibration above 55 -> alarm bar."""
+    frame.locator('[data-testid="stSidebar"] label').filter(has_text="Live Sensor").first.click()
+    sensor = None
+    for _ in range(30):
+        time.sleep(1)
+        sensor = next((f for f in page.frames if _has(f, "#tLocal")), None)
+        if sensor:
+            break
+    if sensor is None:
+        return False
+    print("widget version:", "sensor v1.3" in sensor.locator("body").inner_text())
+    sensor.click("#tLocal")
+    sensor.click("#btnPhone")
+    sensor.evaluate("""() => { window.__amp = 0.3; setInterval(() => window.dispatchEvent(
+        new DeviceMotionEvent('devicemotion', {acceleration: {x: window.__amp + Math.random() * 0.02, y: 0, z: 0}})), 20); }""")
+    time.sleep(12)
+    print("before shake:", sensor.text_content("#status").strip()[:50])
+    sensor.evaluate("() => { window.__amp = 80; }")
+    time.sleep(2)
+    shown = frame.locator("#pp-live-alarm").count() == 1
+    print("hard limit 55 alarm bar shown:", shown, "|", sensor.text_content("#status").strip()[:50])
+    return shown
+
+
+def _has(f, sel) -> bool:
+    try:
+        return f.locator(sel).count() > 0
+    except Exception:
+        return False
+
+
 def main() -> int:
     out = Path("page-shots")
     out.mkdir(exist_ok=True)
@@ -113,6 +145,9 @@ def main() -> int:
         if not alarm_flow(page, frame):
             bad += 1
             print("::error::alarm flow failed")
+        if not hard_limit_flow(page, frame):
+            bad += 1
+            print("::error::hard limit flow failed")
         browser.close()
     return 1 if bad else 0
 

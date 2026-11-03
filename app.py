@@ -330,15 +330,21 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
 [class*="st-key-pp_fc_ok"] {{ border-left: 6px solid #1E7B4F !important; background: #F1FAF5 !important; }}
 [class*="st-key-pp_fc_bad"] {{ border-left: 6px solid {ALERT} !important; background: #FDEDEB !important; }}
 [class*="st-key-pp_fc_none"] {{ border-left: 6px solid #8A9B97 !important; background: #F4F6F6 !important; }}
-.pp-yaqen {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 28px 0 8px;
-  padding: 10px 14px; background: #FFFFFF; border: 1.5px solid #9DB5B0; border-radius: 12px;
-  width: fit-content; box-shadow: 0 2px 8px rgba(11,46,45,0.12); }}
-.pp-yaqen img {{ width: 28px; height: 28px; border-radius: 7px; }}
-.pp-yaqen span {{ font-size: .92rem; color: #0B2E2D; }}
-.pp-yaqen em {{ font-style: normal; color: #6B7B7A; font-size: .82rem; }}
-.pp-li {{ background: #0A66C2; color: #FFFFFF !important; text-decoration: none !important;
-  font-weight: 700; font-size: .85rem; padding: 5px 12px; border-radius: 999px; }}
-.pp-li:hover {{ filter: brightness(1.1); }}
+[data-testid="stMarkdownContainer"]:has(.pp-sign) {{ background: transparent !important; padding: 0 !important; }}
+.pp-sign {{ display: flex; align-items: center; justify-content: center; gap: 12px; margin: 40px 0 10px;
+  color: #0B2E2D; opacity: .92; }}
+.pp-sign-mark {{ width: 34px; height: 34px; flex: none; filter: drop-shadow(0 0 6px rgba(43,184,148,.35)); }}
+.pp-sign-t {{ font-size: .95rem; letter-spacing: .3px; font-weight: 500;
+  background: linear-gradient(100deg, currentColor 0%, currentColor 40%, #2BB894 50%, currentColor 60%, currentColor 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; animation: ppshine 3.5s linear infinite; }}
+.pp-sign-t b {{ font-weight: 800; }}
+.pp-sign-ar {{ font-size: .74rem; opacity: .65; direction: rtl; text-align: left; }}
+.pp-sign-li {{ display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  border-radius: 6px; border: 1.5px solid currentColor; color: inherit !important; font-weight: 800;
+  font-size: .85rem; text-decoration: none !important; opacity: .8; transition: all .2s; }}
+.pp-sign-li:hover {{ opacity: 1; color: #0A66C2 !important; border-color: #0A66C2; }}
+@keyframes ppshine {{ from {{ background-position: 100% 0; }} to {{ background-position: -150% 0; }} }}
 .st-key-pp_alarm_go {{ display: none !important; }}
 .st-key-pp_ops_side button {{ width: 100%; padding: 12px 14px !important; margin: 6px 0 2px;
   background: linear-gradient(135deg, #D0342C 0%, #7A160F 100%) !important; border: 1px solid #FF8A7A !important;
@@ -941,7 +947,7 @@ def ops_css() -> None:
 .st-key-pp_ops_case_low [data-testid="stMetric"] {{ border-left-color: #1E7B4F !important; }}
 .st-key-pp_ops_case_base [data-testid="stMetric"] {{ border-left-color: #C8844A !important; }}
 .st-key-pp_ops_case_high [data-testid="stMetric"] {{ border-left-color: #B42318 !important; }}
-[data-testid="stMain"] .pp-yaqen {{ background: #FFFFFF; }}
+[data-testid="stMain"] .pp-sign {{ color: #FFE9E6; }}
 .pp-tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 4px 0 10px; }}
 .pp-tile {{ background: #1E0807; border: 1px solid #5A1A14; border-left: 5px solid #E5483A; border-radius: 10px;
   padding: 10px 12px; }}
@@ -1085,15 +1091,23 @@ def page_ops_room(ctx: Ctx) -> None:
 
 
 # ------------------------------------------------------------------- branding
+YAQEN_MARK = ('<svg class="pp-sign-mark" viewBox="80 80 240 250" aria-hidden="true">'
+              '<polyline points="112,148 186,222 292,104" fill="none" stroke="currentColor" '
+              'stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>'
+              '<line x1="186" y1="222" x2="186" y2="310" stroke="#2BB894" stroke-width="40" '
+              'stroke-linecap="round"/></svg>')
+
+
 def yaqen_footer() -> None:
-    logo = svg_data_uri("yaqen.svg")
+    """Brand signature at the bottom of every page: no box, just the mark, a shimmer and a link."""
     link = ""
     if LINKEDIN_URL:
-        link = (f'<a class="pp-li" href="{html.escape(LINKEDIN_URL)}" target="_blank" '
-                f'rel="noopener">LinkedIn</a>')
+        link = (f'<a class="pp-sign-li" href="{html.escape(LINKEDIN_URL)}" target="_blank" '
+                f'rel="noopener" title="Yaqen AI on LinkedIn">in</a>')
     st.markdown(
-        f'<div class="pp-yaqen"><img src="{logo}" alt="Yaqen AI"/>'
-        f'<span>Managed by <b>Yaqen AI</b> <em>· بإدارة يقين للذكاء الاصطناعي</em></span>{link}</div>',
+        f'<div class="pp-sign">{YAQEN_MARK}'
+        f'<div><div class="pp-sign-t">Designed &amp; built by <b>Yaqen AI</b></div>'
+        f'<div class="pp-sign-ar">صُممت وطُوّرت بواسطة يقين للذكاء الاصطناعي</div></div>{link}</div>',
         unsafe_allow_html=True)
 
 

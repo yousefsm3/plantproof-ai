@@ -333,9 +333,9 @@ label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0
 [data-testid="stMarkdownContainer"]:has(.pp-sign) {{ background: transparent !important; padding: 0 !important; }}
 .pp-sign {{ display: flex; align-items: center; justify-content: center; gap: 12px; margin: 40px 0 10px;
   color: #0B2E2D; opacity: .92; }}
-.pp-sign-mark {{ width: 34px; height: 34px; flex: none; filter: drop-shadow(0 0 6px rgba(43,184,148,.35)); }}
+.pp-sign-mark {{ width: 40px; height: 40px; flex: none; filter: drop-shadow(0 0 6px rgba(77,163,131,.4)); }}
 .pp-sign-t {{ font-size: .95rem; letter-spacing: .3px; font-weight: 500;
-  background: linear-gradient(100deg, currentColor 0%, currentColor 40%, #2BB894 50%, currentColor 60%, currentColor 100%);
+  background: linear-gradient(100deg, currentColor 0%, currentColor 40%, #4DA383 50%, currentColor 60%, currentColor 100%);
   background-size: 250% 100%; -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; animation: ppshine 3.5s linear infinite; }}
 .pp-sign-t b {{ font-weight: 800; }}
@@ -1091,11 +1091,13 @@ def page_ops_room(ctx: Ctx) -> None:
 
 
 # ------------------------------------------------------------------- branding
-YAQEN_MARK = ('<svg class="pp-sign-mark" viewBox="80 80 240 250" aria-hidden="true">'
-              '<polyline points="112,148 186,222 292,104" fill="none" stroke="currentColor" '
-              'stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>'
-              '<line x1="186" y1="222" x2="186" y2="310" stroke="#2BB894" stroke-width="40" '
-              'stroke-linecap="round"/></svg>')
+YAQEN_MARK = ('<svg class="pp-sign-mark" viewBox="215 130 720 795" aria-hidden="true">'
+              '<g stroke="currentColor" stroke-width="56" stroke-linecap="round">'
+              '<line x1="325" y1="242" x2="575" y2="540"/><line x1="823" y1="242" x2="575" y2="540"/>'
+              '<line x1="575" y1="540" x2="575" y2="813"/></g>'
+              '<g fill="currentColor"><circle cx="325" cy="242" r="91"/><circle cx="823" cy="242" r="91"/>'
+              '<circle cx="575" cy="813" r="91"/></g>'
+              '<circle cx="575" cy="540" r="115" fill="#4DA383"/></svg>')
 
 
 def yaqen_footer() -> None:

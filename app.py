@@ -365,6 +365,7 @@ def report_html(doc: handover.Handover) -> str:
 
 def open_advisor() -> None:
     st.session_state["view"] = ADVISOR
+    st.session_state["page"] = None   # clear the list so any page click leaves this view
 
 
 def close_advisor() -> None:
@@ -884,11 +885,13 @@ def live_monitor(pair: str, mode: str, height: int) -> None:
 # -------------------------------------------------------------- operations room
 def open_ops_room() -> None:
     st.session_state["view"] = OPS
+    st.session_state["page"] = None
 
 
 def go_ops_room() -> None:
     """Called by the live sensor's red alarm bar (it clicks a hidden button)."""
     st.session_state["view"] = OPS
+    st.session_state["page"] = None
     st.session_state["pp_live_alarm"] = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
 
 
@@ -1525,7 +1528,7 @@ def main() -> None:
     nav = st.sidebar.radio(bi("Navigate"), PAGES, key="page", on_change=close_advisor,
                            format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
     view = st.session_state.get("view")
-    page = view if view in (ADVISOR, OPS) else nav
+    page = view if view in (ADVISOR, OPS) else (nav or "Overview")
     titles = {s["id"]: s["title"] for s in index}
     sid = st.sidebar.selectbox(bi("Scenario"), list(titles),
                                format_func=lambda k: bi_plain(titles[k]), key="scenario")

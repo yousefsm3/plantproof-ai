@@ -94,16 +94,16 @@
     <div class="stat"><span>Vibration (RMS, m/s²) · الاهتزاز</span><b id="vRms">–</b></div>
     <div class="stat"><span>Anomaly score · درجة الشذوذ</span><b id="vScore">–</b></div>
     <div class="stat"><span>Learned threshold · الحد المتعلَّم</span><b id="vThr">–</b></div>
-    <div class="stat" style="border-color:#F3C4BD;background:#FDEDEB"><span>Alarm limit · حد الإنذار الفوري</span><b style="color:#B42318">55</b></div>
+    <div class="stat" style="border-color:#F3C4BD;background:#FDEDEB"><span>Vibration alarm limit · حد الإنذار الفوري للاهتزاز</span><b style="color:#B42318">55</b></div>
   </div>
   <canvas id="chart" width="900" height="220"></canvas>
   <div class="note">
     How it works: the model first learns what "normal" vibration looks like for 10 seconds (level and
-    peaks), then scores every half-second and raises an alert when three windows in a row are unusual.
+    peaks), then scores every half-second. It raises the alarm when two windows in a row are unusual, or at once if vibration reaches 55 m/s².
     In phone-to-screen mode the phone sends only two numbers per half-second (vibration level and peak)
     over MQTT, the messaging protocol used for industrial sensors, through a free public broker.
     <div class="rtl">طريقة العمل: النموذج يتعلّم الاهتزاز الطبيعي أول 10 ثوانٍ، وبعدها يقيّم كل نصف ثانية وينبّه إذا تكرر سلوك
-    غير طبيعي ثلاث مرات متتالية. في وضع الربط يرسل الجوال رقمين فقط كل نصف ثانية عبر بروتوكول MQTT المستخدم في حساسات المصانع.</div>
+    غير طبيعي مرتين متتاليتين، أو فورًا إذا وصل الاهتزاز 55. في وضع الربط يرسل الجوال رقمين فقط كل نصف ثانية عبر بروتوكول MQTT المستخدم في حساسات المصانع.</div>
   </div>
 </div>
 <script>
@@ -112,14 +112,15 @@
   const BROKERS = ["wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt"];
   const TOPIC = c => "plantproof-ai/yaqen/live/" + c;
   const LEARN_N = 20, WIN_MS = 500, KEEP = 120, MARGIN = 1.6, RUN = 2;
-  const ALARM_LIMIT = 55;   // anomaly score at or above this raises the alarm immediately
+  const VIB_LIMIT = 55;     // vibration (RMS, m/s²) at or above this raises the alarm immediately
+  const MAX_SPREAD = 0.6;   // learning restarts if vibration varies more than this while learning
   const $ = id => document.getElementById(id);
   const ctx = $("chart").getContext("2d");
   const AR = s => ' <span class="ar">' + s + "</span>";
 
   // ------------------------------------------------------------ memory across pages
   // The screen keeps its pairing code and learned model while the user moves between pages.
-  const MEM_KEY = "pp_live_screen";
+  const MEM_KEY = "pp_live_screen_v2";
   function memGet() { try { return JSON.parse(sessionStorage.getItem(MEM_KEY) || "null"); } catch (e) { return null; } }
   function memSet(v) { try { sessionStorage.setItem(MEM_KEY, JSON.stringify(v)); } catch (e) {} }
   function memClear() { try { sessionStorage.removeItem(MEM_KEY); } catch (e) {} }
@@ -163,33 +164,54 @@
     const score = r => Math.sqrt(r.reduce((s, x, j) => s + ((x - mean[j]) / sd[j]) ** 2, 0) / k);
     return { score, thr, mean, sd };
   }
-  function fit(rows) {
+  const median = a => { const b = [...a].sort((x, y) => x - y), n = b.length; return n % 2 ? b[(n - 1) / 2] : (b[n / 2 - 1] + b[n / 2]) / 2; };
+  function fit(rows) {        // robust: median and MAD, so a few bumps while learning do not count as normal
     const k = rows[0].length, mean = [], sd = [];
     for (let j = 0; j < k; j++) {
-      const col = rows.map(r => r[j]); const m = col.reduce((s, v) => s + v, 0) / col.length;
-      const v = col.reduce((s, x) => s + (x - m) ** 2, 0) / Math.max(1, col.length - 1);
-      mean.push(m); sd.push(Math.max(Math.sqrt(v), 1e-3 + 0.05 * Math.abs(m)));
+      const col = rows.map(r => r[j]); const m = median(col);
+      const mad = median(col.map(x => Math.abs(x - m))) * 1.4826;
+      mean.push(m); sd.push(Math.max(mad, 1e-3 + 0.05 * Math.abs(m)));
     }
     const m = rebuild(mean, sd, 0);
-    m.thr = Math.max(...rows.map(m.score)) * MARGIN;
+    const scores = rows.map(m.score).sort((x, y) => x - y);
+    m.thr = Math.max(scores[Math.floor(scores.length * 0.9)] * MARGIN, 3);
     return m;
+  }
+  function tooShaky(rows) {    // the device moved a lot while learning: learn again
+    const col = rows.map(r => r[0]), m = median(col);
+    return median(col.map(x => Math.abs(x - m))) * 1.4826 > MAX_SPREAD * Math.max(m, 0.05) || m >= VIB_LIMIT;
   }
   function push(f, onFirstModel) {           // f = [rms, peak]
     $("vRms").textContent = f[0].toFixed(2);
+    if (f[0] >= VIB_LIMIT) {                 // hard limit: alarm at once, learned or not
+      points.push({ rms: f[0], score: model ? model.score(f) : null, hard: true });
+      if (points.length > KEEP) points.shift();
+      if (!alerted && mode !== "phone") raiseBanner();
+      alerted = true;
+      setStatus("s-bad", `ALARM: vibration ${f[0].toFixed(1)} m/s² is above the limit of ${VIB_LIMIT}.`,
+                `إنذار: الاهتزاز ${f[0].toFixed(1)} تجاوز الحد ${VIB_LIMIT}.`, true);
+      return draw();
+    }
     if (!model) {
       train.push(f); points.push({ rms: f[0], score: null });
       const left = Math.ceil((LEARN_N - train.length) * WIN_MS / 1000);
       setStatus("s-learn", `Learning normal behaviour… ${left} s. Keep the machine running normally.`,
                 `يتعلّم السلوك الطبيعي… ${left} ثانية. خلّ الآلة تشتغل بشكل طبيعي.`);
       if (train.length >= LEARN_N) {
-        model = fit(train); $("vThr").textContent = model.thr.toFixed(2);
-        if (onFirstModel) onFirstModel();
+        if (tooShaky(train)) {
+          train = [];
+          setStatus("s-learn", "Too much movement while learning. Hold the phone still on the running machine: learning again.",
+                    "حركة كثيرة أثناء التعلّم. ثبّت الجوال على الآلة وهي شغالة: يعيد التعلّم.");
+        } else {
+          model = fit(train); $("vThr").textContent = model.thr.toFixed(2);
+          if (onFirstModel) onFirstModel();
+        }
       }
     } else {
       const s = model.score(f); $("vScore").textContent = s.toFixed(2);
       streak = s > model.thr ? streak + 1 : 0;
       points.push({ rms: f[0], score: s });
-      if (s >= ALARM_LIMIT || streak >= RUN) {
+      if (streak >= RUN) {
         if (!alerted && mode !== "phone") raiseBanner();
         alerted = true;
         setStatus("s-bad", `Anomaly detected: vibration no longer matches the learned normal (score ${s.toFixed(1)} vs ${model.thr.toFixed(1)}).`,
@@ -211,10 +233,15 @@
     points.forEach((p, i) => (i ? ctx.lineTo(x(i), y(p.rms)) : ctx.moveTo(x(i), y(p.rms))));
     ctx.stroke();
     points.forEach((p, i) => {
-      if (model && p.score != null && p.score > model.thr) {
+      if (p.hard || (model && p.score != null && p.score > model.thr)) {
         ctx.fillStyle = "#B42318"; ctx.beginPath(); ctx.arc(x(i), y(p.rms), 4, 0, 7); ctx.fill();
       }
     });
+    if (VIB_LIMIT < maxR) {
+      ctx.strokeStyle = "#B42318"; ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.moveTo(0, y(VIB_LIMIT)); ctx.lineTo(W, y(VIB_LIMIT)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#B42318"; ctx.font = "12px system-ui"; ctx.fillText("Alarm limit 55 · حد الإنذار", W - 170, y(VIB_LIMIT) - 4);
+    }
     ctx.fillStyle = "#4D605E"; ctx.font = "13px system-ui";
     ctx.fillText("Vibration RMS · الاهتزاز (red = anomaly · أحمر = شذوذ)", 8, 16);
   }

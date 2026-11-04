@@ -370,17 +370,16 @@ def page_overview(ctx: Ctx) -> None:
                f"{r.window_start.replace('T', ' ')} → {r.window_end.replace('T', ' ')}")
     st.info(with_ar(ctx.meta["summary"]))
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1.container(key="pp_kpi_records"):
-        st.metric(bi("Records analysed"), r.record_count)
-    with c2.container(key="pp_kpi_contra"):
-        st.metric(bi("Contradictions"), len(r.contradictions))
-    with c3.container(key="pp_kpi_miss"):
-        st.metric(bi("Missing evidence"), len(r.missing))
-    if top:
-        with c4.container(key="pp_kpi_lead"):
-            st.metric(bi("Leading hypothesis"), top.name,
-                      f"{pct(top.confidence)} · {ar(top.name)}", delta_color="off")
+    tiles([
+        ops_tile("Records analysed", str(r.record_count), "sensor, lab, inspection, logs", "كل أنواع السجلات", "info"),
+        ops_tile("Contradictions", str(len(r.contradictions)), "records that disagree", "سجلات متعارضة",
+                 "crit" if r.contradictions else "ok"),
+        ops_tile("Missing evidence", str(len(r.missing)), "checks not done", "فحوصات ناقصة",
+                 "warn" if r.missing else "ok"),
+        ops_tile("Leading hypothesis", top.name if top else "—",
+                 f"{pct(top.confidence)} evidence-based confidence" if top else "",
+                 ar(top.name) if top else "", "brand" if top else "neutral", small=True),
+    ])
 
     # ---- key points: one line each
     ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
@@ -454,7 +453,7 @@ Rules, weights and thresholds live in `config/hypotheses.json`.
 
     for a in r.assessments:
         why_en, why_ar = why_line(a)
-        with st.expander(f"#{a.rank} {bi(a.name)} — **{pct(a.confidence)}** · {why_en} {gray(why_ar)}"):
+        with st.expander(f"**#{a.rank} · {pct(a.confidence)}** · {a.name} — {why_en}  \n{gray(ar(a.name) + ' · ' + why_ar)}"):
             st.caption(ctx.cfg.hypothesis(a.hypothesis_id).description)
             m1, m2, m3 = st.columns(3)
             m1.metric(bi("Support ratio"), pct(a.support_ratio),
@@ -955,10 +954,13 @@ def page_ops_room(ctx: Ctx) -> None:
                      "crit" if counts.get("rejected") else "ok", small=True),
             ops_tile("Outstanding evidence", str(outstanding), "for the leading explanation", "أدلة ناقصة",
                      "warn" if outstanding else "ok", small=True),
-            ops_tile("Recommended next action", first.priority if first else "—",
-                     first.action_en if first else "", first.action_ar if first else "",
-                     {"P1": "crit", "P2": "warn"}.get(first.priority, "info") if first else "neutral", small=True),
         ])
+        if first:
+            t = {"P1": "crit", "P2": "warn"}.get(first.priority, "info")
+            st.markdown(f'<div class="pp-banner {t}" style="padding:10px 14px"><div class="pp-tl">'
+                        f'{e(bi_plain("Recommended next action"))} · {first.priority}</div>'
+                        f'<div class="t" style="font-size:1rem">{e(first.action_en)}</div>'
+                        f'<div class="a">{e(first.action_ar)}</div></div>', unsafe_allow_html=True)
         st.button(f":material/open_in_new: {bi('Open the Reliability Brain')}", key="pp_ops_rb",
                   on_click=open_view, args=(RB,))
 

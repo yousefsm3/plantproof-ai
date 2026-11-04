@@ -78,6 +78,8 @@ code {{ color: #BFD7D0 !important; background: var(--pp-sunken) !important; }}
 [data-testid="stMetric"] {{ background: var(--pp-surface); border: 1px solid var(--pp-border);
   border-left: 3px solid var(--pp-neutral); border-radius: var(--pp-r); padding: 10px 14px; }}
 [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {{ color: var(--pp-text2) !important; font-weight: 600; }}
+[data-testid="stMetricLabel"] p, [data-testid="stMetricLabel"] div, [data-testid="stMetricLabel"] label {{
+  white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }}
 [data-testid="stMetricValue"], [data-testid="stMetricValue"] > div {{ white-space: normal !important;
   overflow: visible !important; text-overflow: clip !important; font-size: 1.45rem; line-height: 1.25;
   color: var(--pp-text); }}
@@ -126,7 +128,7 @@ code {{ color: #BFD7D0 !important; background: var(--pp-sunken) !important; }}
 [data-testid="stMarkdownContainer"]:has(.pp-tiles), [data-testid="stMarkdownContainer"]:has(.pp-banner),
 [data-testid="stMarkdownContainer"]:has(.pp-steps) {{ background: transparent !important; padding: 0 !important; }}
 /* ---------- shared components ---------- */
-.pp-tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 4px 0 12px; }}
+.pp-tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 4px 0 12px; }}
 .pp-tile {{ background: var(--pp-surface); border: 1px solid var(--pp-border); border-left: 3px solid var(--pp-neutral);
   border-radius: var(--pp-r); padding: 10px 12px; min-width: 0; }}
 .pp-tile.ok {{ border-left-color: var(--pp-ok); }} .pp-tile.warn {{ border-left-color: var(--pp-warn); }}
@@ -153,7 +155,7 @@ code {{ color: #BFD7D0 !important; background: var(--pp-sunken) !important; }}
 .pp-banner .a {{ color: var(--pp-muted); font-size: .82rem; margin-top: 2px; direction: rtl; text-align: left; }}
 .pp-banner.live {{ animation: pplive 1.2s ease-in-out infinite alternate; }}
 @keyframes pplive {{ from {{ box-shadow: 0 0 0 0 rgba(229,72,58,0); }} to {{ box-shadow: 0 0 0 4px rgba(229,72,58,.35); }} }}
-.pp-steps {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 6px 0 14px; }}
+.pp-steps {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 6px 0 14px; }}
 .pp-step {{ background: var(--pp-surface); border: 1px solid var(--pp-border); border-top: 3px solid var(--pp-neutral);
   border-radius: var(--pp-r); padding: 8px 10px; min-width: 0; }}
 .pp-step.ok {{ border-top-color: var(--pp-ok); }} .pp-step.warn {{ border-top-color: var(--pp-warn); }}

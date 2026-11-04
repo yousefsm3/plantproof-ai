@@ -45,6 +45,8 @@
   .hide { display:none !important; }
   .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#3A4950; margin-inline-end:6px; }
   .dot.live { background:var(--ok); }
+  .sound-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:6px; }
+  #btnSound.on { border-color:var(--ok); color:var(--ok); }
   .ver { text-align:right; font-size:.7rem; color:var(--muted); }
 </style>
 </head>
@@ -93,7 +95,8 @@
     </div>
   </div>
 
-  <div class="ver">sensor v1.5</div>
+  <div class="sound-row"><button id="btnSound" type="button">&#128264; Enable alarm sound <span class="ar">تفعيل صوت الإنذار</span></button>
+  <span id="soundState" class="ar"></span><span class="ver" style="margin-inline-start:auto">sensor v1.6</span></div>
   <div id="status" class="status s-idle">Choose how to use the sensor. <span class="ar">اختر طريقة الاستخدام.</span></div>
   <div class="stats">
     <div class="stat"><span>Vibration (RMS, m/s²) · الاهتزاز</span><b id="vRms">–</b></div>
@@ -130,6 +133,67 @@
   function memGet() { try { return JSON.parse(sessionStorage.getItem(MEM_KEY) || "null"); } catch (e) { return null; } }
   function memSet(v) { try { sessionStorage.setItem(MEM_KEY, JSON.stringify(v)); } catch (e) {} }
   function memClear() { try { sessionStorage.removeItem(MEM_KEY); } catch (e) {} }
+
+  // ------------------------------------------------------------ alarm sound
+  // iPad/iPhone only allow sound after the user touches the page once, so one audio context
+  // lives on the app window (it survives page changes) and is unlocked by the first touch.
+  function hostWin() { try { window.parent.document.body; return window.parent; } catch (e) { return window; } }
+  function ppAudio() {
+    const w = hostWin();
+    if (!w.__ppAC) {
+      const AC = w.AudioContext || w.webkitAudioContext || window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      try { if (w.navigator.audioSession) w.navigator.audioSession.type = "playback"; } catch (e) {}
+      w.__ppAC = new AC();
+    }
+    return w.__ppAC;
+  }
+  function ppUnlock() {
+    const ac = ppAudio(); if (!ac) return;
+    try {
+      if (ac.state !== "running") ac.resume();
+      const b = ac.createBuffer(1, 1, 22050), src = ac.createBufferSource();
+      src.buffer = b; src.connect(ac.destination); src.start(0);   // silent tick unlocks iOS
+    } catch (e) {}
+    showSound();
+  }
+  function ppBeep() {
+    const ac = ppAudio(); if (!ac) return;
+    try {
+      if (ac.state !== "running") ac.resume();
+      [0, 0.28, 0.56, 1.2, 1.48, 1.76].forEach(t => {
+        const o = ac.createOscillator(), g = ac.createGain(), t0 = ac.currentTime + 0.05 + t;
+        o.type = "square"; o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+        o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0 + 0.22);
+      });
+    } catch (e) {}
+  }
+  function showSound() {
+    const w = hostWin(), on = !!(w.__ppAC && w.__ppAC.state === "running");
+    const b = document.getElementById("btnSound"), s = document.getElementById("soundState");
+    if (!b) return;
+    b.classList.toggle("on", on);
+    b.innerHTML = on ? "&#128266; Sound on &middot; test <span class='ar'>الصوت شغال &middot; تجربة</span>"
+                     : "&#128264; Enable alarm sound <span class='ar'>تفعيل صوت الإنذار</span>";
+    if (s) s.textContent = on ? "" : "المس هذا الزر مرة وحدة قبل العرض";
+  }
+  (function wireSound() {
+    const w = hostWin();
+    [document, w.document].forEach(doc => {
+      if (doc.__ppSoundWired) return; doc.__ppSoundWired = true;
+      ["touchend", "pointerdown", "click", "keydown"].forEach(ev =>
+        doc.addEventListener(ev, ppUnlock, { passive: true }));
+    });
+    document.addEventListener("DOMContentLoaded", () => {
+      const b = document.getElementById("btnSound");
+      if (b) b.addEventListener("click", () => { ppUnlock(); ppBeep(); });
+      showSound();
+    });
+    setInterval(showSound, 2000);
+  })();
 
   // A red bar across the top of the whole app; clicking it opens the Operations Room.
   function raiseBanner() {
@@ -192,22 +256,7 @@
         "<div class='pp-x' title='Dismiss' onclick=\"event.stopPropagation();" +
         "var e=document.getElementById('pp-live-edge');if(e){e.remove();}this.parentNode.remove();\">&times;</div>";
       d.body.appendChild(a);
-      // short alert tone and vibration where the browser allows it (ignored otherwise)
-      try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) {
-          const ac = new AC();
-          [0, 0.28, 0.56].forEach(t => {
-            const o = ac.createOscillator(), g = ac.createGain();
-            o.type = "square"; o.frequency.value = 880;
-            g.gain.setValueAtTime(0.0001, ac.currentTime + t);
-            g.gain.exponentialRampToValueAtTime(0.12, ac.currentTime + t + 0.02);
-            g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + t + 0.2);
-            o.connect(g); g.connect(ac.destination);
-            o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.22);
-          });
-        }
-      } catch (e) {}
+      ppBeep();
       try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
     } catch (e) { console.warn("PlantProof: could not show the alarm bar", e); }
   }

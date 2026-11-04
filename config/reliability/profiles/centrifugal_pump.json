@@ -1,0 +1,82 @@
+{
+  "_comment": "Examination profile for centrifugal pumps, used only by the Reliability Brain. Indicators are typical associations from general pump reliability practice, used to organise the investigation; they are not proof of a mechanism. Bounds are physical-plausibility limits for data checks, not alarm limits.",
+  "profile_id": "centrifugal_pump",
+  "name": "Centrifugal pump",
+  "version": 1,
+  "spec_fields": [
+    {"key": "rated_flow_m3h", "label": "Rated flow (m³/h)"},
+    {"key": "rated_head_m", "label": "Rated head (m)"},
+    {"key": "speed_rpm", "label": "Speed (rpm)"},
+    {"key": "driver_power_kw", "label": "Driver power (kW)"},
+    {"key": "seal_type", "label": "Mechanical seal type"},
+    {"key": "bearing_type", "label": "Bearing type"}
+  ],
+  "sensors": {
+    "vibration_mm_s":         {"label": "Vibration", "unit": "mm/s", "min": 0, "max": 50},
+    "bearing_temp_c":         {"label": "Bearing temperature", "unit": "°C", "min": -20, "max": 200},
+    "seal_pot_level_pct":     {"label": "Seal pot level", "unit": "%", "min": 0, "max": 100},
+    "suction_pressure_bar":   {"label": "Suction pressure", "unit": "bar", "min": -1, "max": 40},
+    "discharge_pressure_bar": {"label": "Discharge pressure", "unit": "bar", "min": -1, "max": 100},
+    "flow_m3h":               {"label": "Flow", "unit": "m³/h", "min": 0, "max": 5000},
+    "motor_current_a":        {"label": "Motor current", "unit": "A", "min": 0, "max": 2000}
+  },
+  "sensor_cadence_s": 3600,
+  "baseline_hours": 18,
+  "trend_hours": 12,
+  "watch_fraction": 0.6,
+  "watch_deviation_pct": 15,
+  "condition_bands": {
+    "oil_iron_ppm":             {"source_type": "lab", "label": "Iron in oil", "unit": "ppm", "abnormal_above": 50, "normal_at_or_below": 25},
+    "oil_water_ppm":            {"source_type": "lab", "label": "Water in oil", "unit": "ppm", "abnormal_above": 500, "normal_at_or_below": 200},
+    "oil_particle_iso":         {"source_type": "lab", "label": "Oil particle count", "unit": "ISO code", "abnormal_above": 18, "normal_at_or_below": 16},
+    "oil_viscosity_change_pct": {"source_type": "lab", "label": "Oil viscosity change", "unit": "%", "abnormal_above": 10, "normal_at_or_below": 5},
+    "handheld_vibration_mm_s":  {"source_type": "inspection", "label": "Handheld vibration", "unit": "mm/s", "abnormal_above": 7.1, "normal_at_or_below": 4.5},
+    "seal_leak_ml_min":         {"source_type": "inspection", "label": "Seal leakage", "unit": "ml/min", "abnormal_above": 5, "normal_at_or_below": 1},
+    "alignment_offset_mm":      {"source_type": "inspection", "label": "Shaft alignment offset", "unit": "mm", "abnormal_above": 0.1, "normal_at_or_below": 0.05},
+    "strainer_dp_bar":          {"source_type": "inspection", "label": "Suction strainer differential pressure", "unit": "bar", "abnormal_above": 0.5, "normal_at_or_below": 0.2}
+  },
+  "calibrations": [
+    {"parameter": "vib_sensor_cal", "covers": "vibration_mm_s", "max_age_days": 365}
+  ],
+  "cross_check_pairs": [
+    {"independent": "handheld_vibration_mm_s", "online": "vibration_mm_s"}
+  ],
+  "failure_modes": [
+    {"id": "bearing_wear", "name": "Bearing degradation", "engine_hypothesis": "bearing_wear",
+     "consequence": "High", "consequence_note": "A failing bearing can seize and damage the shaft, seal and casing.",
+     "indicators": [{"param": "vibration_mm_s", "direction": "high"}, {"param": "bearing_temp_c", "direction": "high"},
+                    {"param": "oil_iron_ppm", "direction": "high"}, {"param": "oil_particle_iso", "direction": "high"}],
+     "discriminating_checks": ["Vibration spectrum at bearing defect frequencies", "Oil wear-debris analysis (ferrography)"]},
+    {"id": "seal_failure", "name": "Mechanical seal failure", "engine_hypothesis": "seal_failure",
+     "consequence": "High", "consequence_note": "A leaking seal releases process fluid: a safety and environmental exposure.",
+     "indicators": [{"param": "seal_pot_level_pct", "direction": "low"}, {"param": "seal_leak_ml_min", "direction": "high"},
+                    {"param": "oil_water_ppm", "direction": "high"}],
+     "discriminating_checks": ["Visual seal inspection at standstill", "Seal flush flow and pressure check"]},
+    {"id": "cavitation", "name": "Cavitation", "engine_hypothesis": "cavitation",
+     "consequence": "Medium", "consequence_note": "Sustained cavitation erodes the impeller and reduces flow.",
+     "indicators": [{"param": "suction_pressure_bar", "direction": "low"}, {"param": "discharge_pressure_bar", "direction": "low"},
+                    {"param": "flow_m3h", "direction": "low"}],
+     "discriminating_checks": ["NPSH available against NPSH required (needs pump data sheet)", "Suction strainer differential pressure"]},
+    {"id": "misalignment", "name": "Shaft misalignment", "engine_hypothesis": "misalignment",
+     "consequence": "Medium", "consequence_note": "Misalignment accelerates bearing and coupling wear.",
+     "indicators": [{"param": "vibration_mm_s", "direction": "high"}],
+     "discriminating_checks": ["Laser shaft alignment", "Axial against radial vibration comparison"]},
+    {"id": "sensor_fault", "name": "Vibration instrument fault", "engine_hypothesis": "sensor_fault", "instrument_for": "vibration_mm_s",
+     "consequence": "Medium", "consequence_note": "A faulty transmitter causes spurious trips and can hide a real fault.",
+     "indicators": [{"param": "vibration_mm_s", "direction": "high"}],
+     "discriminating_checks": ["Independent handheld vibration measurement", "Transmitter calibration and cabling check"]},
+    {"id": "imbalance", "name": "Rotor imbalance", "engine_hypothesis": null,
+     "consequence": "Medium", "consequence_note": "Imbalance raises vibration and bearing loads.",
+     "indicators": [{"param": "vibration_mm_s", "direction": "high"}],
+     "discriminating_checks": ["Vibration spectrum: dominant 1x running-speed component", "Impeller inspection for fouling or damage"]},
+    {"id": "lubrication", "name": "Lubrication problem", "engine_hypothesis": null,
+     "consequence": "High", "consequence_note": "Poor lubrication leads to bearing overheating and failure.",
+     "indicators": [{"param": "bearing_temp_c", "direction": "high"}, {"param": "oil_viscosity_change_pct", "direction": "high"},
+                    {"param": "oil_particle_iso", "direction": "high"}],
+     "discriminating_checks": ["Oil level and condition check", "Lubrication schedule against records"]},
+    {"id": "hydraulic_instability", "name": "Hydraulic instability (off-design operation)", "engine_hypothesis": null,
+     "consequence": "Medium", "consequence_note": "Running far from the best-efficiency point causes recirculation and vibration.",
+     "indicators": [{"param": "flow_m3h", "direction": "low"}, {"param": "discharge_pressure_bar", "direction": "low"}],
+     "discriminating_checks": ["Operating point against the pump curve (needs pump data sheet)"]}
+  ]
+}

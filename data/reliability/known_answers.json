@@ -1,0 +1,47 @@
+{
+  "_comment": "Known-answer engineering behaviour for the Reliability Brain. Each entry states what a careful reliability engineer would conclude from the synthetic records, and why. Tests compare the Brain against these; change an entry only if the engineering argument changes, never to make a test pass.",
+  "cases": {
+    "P-301/A": {
+      "overall": "Complete", "condition": "Alarm", "grade": "A", "risk": "Critical",
+      "leading": "bearing_wear", "label": "High", "suspect_sensors": [],
+      "contradictions": ["C-01", "C-02"],
+      "must_recommend": ["resolve", "hold", "if_confirmed"],
+      "rationale": "Vibration and bearing temperature rise together and cross alarm, the handheld check confirms high vibration, iron, particles and viscosity are abnormal, and lubrication was overdue: strong evidence for bearing degradation, a high-consequence mechanism on a high-criticality pump. Two 'normal' reports conflict with the sensors and must be resolved."
+    },
+    "P-301/B": {
+      "overall": "Complete, awaiting evidence", "condition": "Alarm (unconfirmed)", "grade": "B", "risk": "High",
+      "leading": "sensor_fault", "label": "Medium", "suspect_sensors": ["vibration_mm_s"],
+      "contradictions": ["C-01", "C-02"],
+      "must_recommend": ["diagnose", "resolve"],
+      "rationale": "Only the online vibration reading is in alarm; bearing temperature, oil and the handheld check are normal, the handheld disagrees with the transmitter, and its calibration is two years old. The alarm must be treated as unconfirmed and the instrument checked first. Confidence is held below High because the data grade is B and the calibration evidence is out of date."
+    },
+    "P-301/C": {
+      "overall": "Complete", "condition": "Alarm", "grade": "A", "risk": "Critical",
+      "leading": "seal_failure", "label": "High", "suspect_sensors": [],
+      "contradictions": ["C-01"],
+      "must_recommend": ["resolve", "hold", "if_confirmed"],
+      "rationale": "Seal pot level falls through its alarm, leakage is seen at inspection, there is 900 ppm water in the oil and the seal was replaced 20 days earlier. A seal leak releases process fluid, so the consequence is high. The operator log saying 'no leaks' conflicts and must be resolved."
+    },
+    "P-302/routine": {
+      "overall": "Complete", "condition": "Normal", "grade": "A", "risk": "Low",
+      "leading": null, "label": null, "suspect_sensors": [],
+      "contradictions": [],
+      "must_recommend": ["monitor"],
+      "rationale": "All sensors stable near baseline, oil and inspections normal, calibration and lubrication current. No mechanism is supported; the right action is to continue monitoring, while noting that absence of evidence is not proof of health."
+    },
+    "P-303/poor-data": {
+      "overall": "Insufficient data", "condition": "Degraded", "grade": "D", "risk": "Undetermined",
+      "leading": null, "label": null, "suspect_sensors": [],
+      "contradictions": [],
+      "must_recommend": ["escalate", "data"],
+      "rationale": "Twelve hours of sensor data are missing, two rows are unreadable, one ID is duplicated, one vibration reading conflicts, two readings are physically impossible and there is no calibration record. No risk rating should be given from data this poor; the records must be corrected and an engineer involved."
+    },
+    "K-101/routine": {
+      "overall": "Not examined: asset type not supported", "condition": "Unknown", "grade": "—", "risk": "Unknown",
+      "leading": null, "label": null, "suspect_sensors": [],
+      "contradictions": [],
+      "must_recommend": [],
+      "rationale": "No examination profile exists for reciprocating compressors. Applying pump rules would be wrong, so the Brain must stop at stage 1 and say so."
+    }
+  }
+}

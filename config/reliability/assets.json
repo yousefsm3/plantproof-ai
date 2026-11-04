@@ -1,0 +1,56 @@
+{
+  "_comment": "Reliability Brain asset registry. Synthetic demo entries only. A field left null is unknown and is reported as unknown: never fill it with a guess. Read only by plantproof/reliability; the original platform does not use this file.",
+  "version": 1,
+  "assets": [
+    {
+      "asset_id": "P-301",
+      "name": "Cooling water pump P-301 (Line 3)",
+      "type": "centrifugal_pump",
+      "location": "Line 3",
+      "criticality": "High",
+      "criticality_source": "Synthetic registry entry for the demo (assumed: no installed spare on line 3).",
+      "specs": {},
+      "cases": [
+        {"case_id": "P-301/A", "source": "scenario", "scenario_id": "A", "title": "Trip on high vibration, 13 Oct 2026"},
+        {"case_id": "P-301/B", "source": "scenario", "scenario_id": "B", "title": "Trip on high vibration, 20 Oct 2026"},
+        {"case_id": "P-301/C", "source": "scenario", "scenario_id": "C", "title": "Trip on seal pot low-low level, 27 Oct 2026"}
+      ]
+    },
+    {
+      "asset_id": "P-302",
+      "name": "Cooling water pump P-302 (Line 4)",
+      "type": "centrifugal_pump",
+      "location": "Line 4",
+      "criticality": "Medium",
+      "criticality_source": "Synthetic registry entry for the demo (assumed: installed spare available).",
+      "specs": {},
+      "cases": [
+        {"case_id": "P-302/routine", "source": "fixture", "file": "P-302_routine.csv", "title": "Routine 48 h review, no trip"}
+      ]
+    },
+    {
+      "asset_id": "P-303",
+      "name": "Transfer pump P-303 (Tank farm)",
+      "type": "centrifugal_pump",
+      "location": "Tank farm",
+      "criticality": null,
+      "criticality_source": null,
+      "specs": {},
+      "cases": [
+        {"case_id": "P-303/poor-data", "source": "fixture", "file": "P-303_poor_data.csv", "title": "Review with incomplete and inconsistent records"}
+      ]
+    },
+    {
+      "asset_id": "K-101",
+      "name": "Gas compressor K-101",
+      "type": "reciprocating_compressor",
+      "location": "Compression unit",
+      "criticality": "High",
+      "criticality_source": "Synthetic registry entry for the demo.",
+      "specs": {},
+      "cases": [
+        {"case_id": "K-101/routine", "source": "fixture", "file": "K-101_routine.csv", "title": "Routine review (asset type not yet supported)"}
+      ]
+    }
+  ]
+}

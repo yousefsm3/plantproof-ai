@@ -326,6 +326,15 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual({b.record_id for b in bad}, {"P303-SEN-9002", "P303-SEN-9003"})
 
 
+class FixtureTests(unittest.TestCase):
+    def test_fixtures_regenerate_byte_for_byte(self):
+        from plantproof.reliability import fixtures
+        with tempfile.TemporaryDirectory() as d:
+            for p in fixtures.write_all(Path(d)):
+                committed = PROJECT_ROOT / "data" / "reliability" / p.name
+                self.assertEqual(p.read_bytes(), committed.read_bytes(), p.name)
+
+
 class KnowledgeTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

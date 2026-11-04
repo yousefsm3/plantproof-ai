@@ -369,7 +369,7 @@ def generic_answer(kind: str, obs: list[Observation], config: EngineConfig,
             items.append(AdvisorItem("No evidence is missing.", "لا توجد أدلة ناقصة.", [], "pass"))
         return AdvisorAnswer(kind, "Missing evidence", "الأدلة الناقصة", items)
     if kind == "cost":
-        sym = costs.get("currency_symbol", "£")
+        sym = costs.get("currency_symbol", "$")
         for a in analysis.assessments[:3]:
             if a.hypothesis_id not in costs.get("profiles", {}):
                 continue

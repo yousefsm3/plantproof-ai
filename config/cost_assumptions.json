@@ -1,7 +1,7 @@
 {
-  "_comment": "Illustrative synthetic cost assumptions in GBP. Not real plant data. Each value has low / base / high.",
-  "currency": "GBP",
-  "currency_symbol": "£",
+  "_comment": "Illustrative synthetic cost assumptions in USD. Not real plant data. Each value has low / base / high.",
+  "currency": "USD",
+  "currency_symbol": "$",
   "lost_margin_per_hour": {
     "low": 1200,
     "base": 1800,

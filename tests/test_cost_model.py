@@ -44,7 +44,7 @@ class CostTests(unittest.TestCase):
         self.assertIsNone(cm.weighted_estimate(empty.assessments, self.a))
 
     def test_money_format(self):
-        self.assertEqual(cm.format_money(24970), "£24,970")
+        self.assertEqual(cm.format_money(24970), "$24,970")
 
 
 if __name__ == "__main__":

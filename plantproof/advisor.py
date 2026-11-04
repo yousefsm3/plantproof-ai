@@ -267,7 +267,7 @@ def action_plan(observations, config: EngineConfig, analysis: AnalysisResult,
                                      [], "info"))
         if top.hypothesis_id in costs.get("profiles", {}):
             t = estimate(top.hypothesis_id, costs).totals
-            sym = costs.get("currency_symbol", "£")
+            sym = costs.get("currency_symbol", "$")
             items.append(AdvisorItem(
                 f"Budget range if confirmed: {format_money(t['low'], sym)} - "
                 f"{format_money(t['high'], sym)} (base {format_money(t['base'], sym)}).",

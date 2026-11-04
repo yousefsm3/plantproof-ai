@@ -22,7 +22,7 @@ class HandoverTests(unittest.TestCase):
                                       now=datetime(2026, 10, 14, 6, 0, tzinfo=timezone.utc))
         md = doc.to_markdown()
         for text in ("# Shift handover", "Bearing wear", "A-OPS-0004", "A-INS-0002",
-                     "Laser shaft alignment check", "£24,970", "Alignment test",
+                     "Laser shaft alignment check", "$24,970", "Alignment test",
                      "Check P-301 before restart", "2026-10-14 06:00 UTC"):
             self.assertIn(text, md)
         self.assertEqual(json.loads(doc.to_json())["scenario_id"], "A")
@@ -40,7 +40,7 @@ class HandoverTests(unittest.TestCase):
                                       notes="<script>alert(1)</script> تم فحص المضخة", cost=est)
         page = doc.to_html(logo_svg="<svg></svg>")
         for text in ("Shift Handover Report", "تقرير تسليم الوردية", "Bearing wear",
-                     "A-OPS-0004", "£24,970", "Laser shaft alignment check", "تم فحص المضخة"):
+                     "A-OPS-0004", "$24,970", "Laser shaft alignment check", "تم فحص المضخة"):
             self.assertIn(text, page)
         self.assertNotIn("<script>alert", page)          # notes are escaped
         self.assertIn("&lt;script&gt;", page)

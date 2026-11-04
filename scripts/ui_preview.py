@@ -79,6 +79,14 @@ def main() -> int:
                 bad += 1
             else:
                 print(f"OK  {name}")
+            # money in dollars: no "$...$" read as maths, no stray escape backslashes
+            katex = page.locator(".katex").count()
+            slash = "\\$" in text
+            if katex or slash:
+                print(f"::error::{name}: dollar rendering (katex={katex}, backslash={slash})")
+                bad += 1
+            dollars = [m for m in text.split() if m.startswith("$")][:3]
+            print(f"     {name} dollars: {dollars}")
             for size in WANT:
                 w, h = SIZES[size]
                 page.set_viewport_size({"width": w, "height": h})

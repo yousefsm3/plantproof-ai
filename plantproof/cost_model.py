@@ -70,8 +70,8 @@ def _check_range(name: str, r: Any) -> dict[str, float]:
 
 def validate_assumptions(raw: dict[str, Any]) -> dict[str, Any]:
     out = {
-        "currency": raw.get("currency", "GBP"),
-        "currency_symbol": raw.get("currency_symbol", "£"),
+        "currency": raw.get("currency", "USD"),
+        "currency_symbol": raw.get("currency_symbol", "$"),
         "lost_margin_per_hour": _check_range("lost_margin_per_hour", raw.get("lost_margin_per_hour")),
         "labour_rate_per_hour": _check_range("labour_rate_per_hour", raw.get("labour_rate_per_hour")),
         "profiles": {},
@@ -154,5 +154,5 @@ def weighted_estimate(assessments: list[HypothesisAssessment],
     return {"value": round(value, 2), "rows": rows}
 
 
-def format_money(value: float, symbol: str = "£") -> str:
+def format_money(value: float, symbol: str = "$") -> str:
     return f"{symbol}{value:,.0f}"

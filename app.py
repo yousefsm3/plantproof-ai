@@ -10,6 +10,7 @@ UI labels show English followed by a light-grey Arabic gloss
 from __future__ import annotations
 
 import base64
+import re
 import html
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -48,6 +49,50 @@ def _drop_stale_plantproof_modules() -> None:
 _drop_stale_plantproof_modules()
 
 import ui_theme  # noqa: E402  (after the stale-module guard)
+
+
+# ------------------------------------------------------------- dollar signs in text
+# Money is shown in US dollars. Streamlit reads "$...$" in markdown as maths, so every
+# markdown text the app writes gets its "$" escaped. Raw HTML blocks are left alone,
+# because markdown does not read maths inside them.
+def _dollar_safe(text):
+    if not isinstance(text, str) or "$" not in text or text.lstrip().startswith("<"):
+        return text
+    return re.sub(r"(?<!\\)\$", r"\\$", text)
+
+
+def _patch_dollars() -> None:
+    if getattr(st, "_pp_dollar_safe", False):
+        return
+    names = ("markdown", "caption", "info", "success", "warning", "error", "expander", "button",
+             "subheader", "header", "title", "write", "toast", "popover", "download_button",
+             "metric", "number_input", "slider", "text_input", "selectbox", "radio")
+
+    def wrap(fn):
+        def inner(*args, **kwargs):
+            if args:
+                args = (_dollar_safe(args[0]),) + tuple(args[1:])
+            for k in ("body", "label"):
+                if k in kwargs:
+                    kwargs[k] = _dollar_safe(kwargs[k])
+            return fn(*args, **kwargs)
+        inner.__wrapped__ = fn
+        return inner
+
+    for name in names:
+        fn = getattr(st, name, None)
+        if callable(fn):
+            setattr(st, name, wrap(fn))
+        side = getattr(st.sidebar, name, None) if hasattr(st, "sidebar") else None
+        if callable(side):
+            try:
+                setattr(st.sidebar, name, wrap(side))
+            except Exception:
+                pass
+    st._pp_dollar_safe = True
+
+
+_patch_dollars()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("plantproof.app")
@@ -1237,10 +1282,10 @@ def page_cost(ctx: Ctx) -> None:
     with st.expander(bi("Adjust assumptions (this session only)")):
         fields = [("downtime_hours", "Downtime (hours)", prof["downtime_hours"]),
                   ("labour_hours", "Labour (hours)", prof["labour_hours"]),
-                  ("parts", "Parts (£)", prof["parts"]),
-                  ("lost_margin_per_hour", "Lost margin (£/hour)",
+                  ("parts", "Parts ($)", prof["parts"]),
+                  ("lost_margin_per_hour", "Lost margin ($/hour)",
                    base_assumptions["lost_margin_per_hour"]),
-                  ("labour_rate_per_hour", "Labour rate (£/hour)",
+                  ("labour_rate_per_hour", "Labour rate ($/hour)",
                    base_assumptions["labour_rate_per_hour"])]
         for key, label, rng in fields:
             st.markdown(f"**{bi(label)}**")

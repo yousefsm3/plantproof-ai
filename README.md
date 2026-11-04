@@ -193,7 +193,7 @@ picker cannot upload folders. So create each folder first, then upload into it.
    Ask the Advisor "is the oil OK?" and show the cited lab record.
 6. **Blind Test.** Run it: 100/100 on all three scenarios. Then score your own guess in the second
    tab to show the scorer is fair.
-7. **Cost.** Sensor fault costs about £4.4k (base) against about £25k for bearing wear. That
+7. **Cost.** Sensor fault costs about $4.4k (base) against about $25k for bearing wear. That
    is why evidence matters before restart.
 8. **Handover.** Generate it, download the Markdown, save it. Finish on **History → Download
    history** and explain the storage warning.

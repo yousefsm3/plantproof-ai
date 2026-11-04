@@ -55,7 +55,7 @@ class AdvisorTests(unittest.TestCase):
         self.assertIn("Bearing wear", exp.title_en)
         self.assertTrue(any("A-LAB-0001" in i.record_ids for i in exp.items))
         plan = advisor.action_plan(obs, cfg, res, costs)
-        self.assertTrue(any("£24,970" in i.en for i in plan.items))
+        self.assertTrue(any("$24,970" in i.en for i in plan.items))
 
     def test_handover_request_checks_note_against_evidence(self):
         from plantproof.domain import load_scenario_index

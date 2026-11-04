@@ -92,7 +92,7 @@ def run(ctx: RunContext) -> StageResult:
     exposure = adapter.cost_view(lead["hypothesis_id"]) if lead else None
     if exposure:
         cb.add(ClaimKind.FINDING, f"Illustrative cost if {lead['mode_name'].lower()} is confirmed: "
-               f"£{exposure['low']:,.0f}–£{exposure['high']:,.0f} (base £{exposure['base']:,.0f}), from the "
+               f"${exposure['low']:,.0f}–${exposure['high']:,.0f} (base ${exposure['base']:,.0f}), from the "
                "platform's cost assumptions, not site data.", "تكلفة توضيحية من افتراضات المنصة.")
 
     cb.add(ClaimKind.UNCERTAINTY, "Likelihood is not given as a probability: there is no validated failure-rate or "

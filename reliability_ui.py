@@ -237,8 +237,8 @@ def _risk(r) -> None:
         tile("Evidence strength", d.get("strength") or "—", "not a probability", "ليست احتمالًا", "neutral", small=True),
         tile("Indicator trend", d.get("trend") or "—", "last 12 h", "آخر 12 ساعة",
              "warn" if d.get("trend") == "worsening" else "neutral", small=True),
-        tile("Cost exposure", f"£{exp['base']:,.0f}" if exp else "—",
-             f"£{exp['low']:,.0f}–£{exp['high']:,.0f}, illustrative" if exp else "no supported mechanism",
+        tile("Cost exposure", f"${exp['base']:,.0f}" if exp else "—",
+             f"${exp['low']:,.0f}–${exp['high']:,.0f}, illustrative" if exp else "no supported mechanism",
              "توضيحية", "neutral", small=True),
     ]) + "</div>")
     st.markdown(f"**{bi('Risk matrix')}** {gray('الشدة × قوة الدليل')}")

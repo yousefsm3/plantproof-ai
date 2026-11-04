@@ -81,7 +81,7 @@ def hard_limit_flow(page, frame) -> bool:
             break
     if sensor is None:
         return False
-    print("widget version:", "sensor v1.3" in sensor.locator("body").inner_text())
+    print("widget version:", "sensor v1." in sensor.locator("body").inner_text())
     sensor.click("#tLocal")
     sensor.click("#btnPhone")
     sensor.evaluate("""() => { window.__amp = 0.3; setInterval(() => window.dispatchEvent(

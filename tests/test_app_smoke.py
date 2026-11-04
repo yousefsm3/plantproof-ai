@@ -50,6 +50,9 @@ class AppSmokeTest(unittest.TestCase):
         sys.modules["streamlit"] = fake
         sys.modules.update(make_plotly_modules())
         sys.modules.update(make_components_modules(fake))
+        rb_ui = sys.modules.get("reliability_ui")        # a module imported in an earlier run keeps
+        if rb_ui is not None and hasattr(rb_ui, "st"):   # its own 'st'; point it at this run's fake
+            rb_ui.st = fake
         try:
             runpy.run_path(str(APP), run_name="__main__")
         except RerunSignal:
@@ -197,6 +200,75 @@ class AppSmokeTest(unittest.TestCase):
         fake = self.run_app({"scenario": "A"}, session=session)
         self.assertTrue(any("Operations Room" in str(c[1]) for c in fake.calls if c[0] == "title"
                             or c[0] == "markdown"))
+
+    # ------------------------------------------------ Reliability Brain feature flag
+    def _calls_text(self, fake):
+        return " ".join(str(c[1]) for c in fake.calls)
+
+    def test_flag_off_hides_the_brain_completely(self):
+        os.environ.pop("PLANTPROOF_RELIABILITY", None)
+        session = SessionState()
+        session["view"] = "Reliability Brain"          # even if asked for, it must not open
+        fake = self.run_app({"page": "Overview", "scenario": "A"}, session=session)
+        text = self._calls_text(fake)
+        self.assertNotIn("Reliability Brain", text)
+        self.assertEqual(self.errors(fake), [])
+        self.assertNotIn("reliability_ui", sys.modules)
+
+    def test_flag_on_brain_page_every_case_and_button(self):
+        os.environ["PLANTPROOF_RELIABILITY"] = "1"
+        os.environ["PLANTPROOF_RB_DB"] = str(Path(self.tmp.name) / "rb.db")
+        try:
+            for sid in ("A", "B", "C"):
+                for press in (False, True):
+                    session = SessionState()
+                    session["view"] = "Reliability Brain"
+                    fake = self.run_app({"page": "Overview", "scenario": sid,
+                                         "pp_rb_side": False}, press=press, session=session)
+                    with self.subTest(sid=sid, press=press):
+                        self.assertEqual(self.errors(fake), [])
+                        text = self._calls_text(fake)
+                        self.assertIn("Examination progress", text)
+                        self.assertIn(f"P-301/{sid}", text)
+            for case in ("P-302/routine", "P-303/poor-data", "K-101/routine"):
+                session = SessionState()
+                session["view"] = "Reliability Brain"
+                session["rb_case"] = case
+                fake = self.run_app({"page": "Overview", "scenario": "A", "rb_case": case}, session=session)
+                with self.subTest(case=case):
+                    self.assertEqual(self.errors(fake), [])
+            fake = self.run_app({"page": "Operations Room", "scenario": "C"})
+            self.assertIn("Highest-priority risk", self._calls_text(fake))
+            self.assertEqual(self.errors(fake), [])
+        finally:
+            os.environ.pop("PLANTPROOF_RELIABILITY", None)
+            os.environ.pop("PLANTPROOF_RB_DB", None)
+
+    def test_broken_brain_never_breaks_the_platform(self):
+        import types
+        os.environ["PLANTPROOF_RELIABILITY"] = "1"
+        broken = types.ModuleType("reliability_ui")
+        def explode(*a, **k):
+            raise RuntimeError("simulated Brain defect")
+        broken.render = explode
+        broken.ops_summary = explode
+        saved = sys.modules.get("reliability_ui")
+        sys.modules["reliability_ui"] = broken
+        try:
+            session = SessionState()
+            session["view"] = "Reliability Brain"
+            fake = self.run_app({"page": "Overview", "scenario": "A"}, session=session)
+            self.assertIn("simulated Brain defect", self._calls_text(fake))
+            self.assertTrue(any("Designed" in str(c[1]) for c in fake.calls))   # page finished: footer drawn
+            fake = self.run_app({"page": "Operations Room", "scenario": "A"})
+            self.assertIn("Reliability Brain summary unavailable", self._calls_text(fake))
+            self.assertIn("Most likely cause", self._calls_text(fake))
+        finally:
+            os.environ.pop("PLANTPROOF_RELIABILITY", None)
+            if saved is None:
+                sys.modules.pop("reliability_ui", None)
+            else:
+                sys.modules["reliability_ui"] = saved
 
     def test_history_page_shows_warning_and_export(self):
         fake = self.run_app({"page": "History", "scenario": "A"})

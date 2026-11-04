@@ -35,7 +35,8 @@ class TranslationTests(unittest.TestCase):
             self.assertTrue(ar(t["label"]), t["label"])
 
     def test_every_bi_literal_in_app_is_translated(self):
-        tree = ast.parse(APP.read_text(encoding="utf-8"))
+        tree = ast.parse(APP.read_text(encoding="utf-8")
+                         + "\n" + (APP.parent / "reliability_ui.py").read_text(encoding="utf-8"))
         literals = []
         for node in ast.walk(tree):
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)

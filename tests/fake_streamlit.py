@@ -13,11 +13,11 @@ import types
 from typing import Any
 
 
-class StopSignal(Exception):
+class StopSignal(BaseException):   # like Streamlit: not caught by "except Exception"
     """Raised by st.stop()."""
 
 
-class RerunSignal(Exception):
+class RerunSignal(BaseException):  # like Streamlit: not caught by "except Exception"
     """Raised by st.rerun()."""
 
 

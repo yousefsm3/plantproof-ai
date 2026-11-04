@@ -4,44 +4,48 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --petrol:#145A55; --ink:#0B2E2D; --copper:#C8844A; --alert:#B42318; --ok:#1E7B4F; --line:#9DB5B0; }
+  :root { --petrol:#2E7D66; --brand:#4DA383; --ink:#E6ECEB; --text2:#A9B8B6; --muted:#74858A; --alert:#E5483A;
+          --ok:#3FAE7C; --warn:#E0A43C; --line:#27333A; --surface:#151C1F; --raised:#1B2427; --sunken:#11181A; }
   * { box-sizing: border-box; }
   body { margin:0; font-family: "Source Sans Pro", system-ui, -apple-system, sans-serif; color:var(--ink); background:transparent; }
-  .card { background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:14px 16px;
-          box-shadow:0 4px 14px rgba(11,46,45,.16); }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
   .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
   .tabs button { flex:1 1 150px; }
-  .tabs button.on { background:var(--petrol); color:#fff; border-color:var(--ink); }
+  .tabs button.on { background:var(--raised); border-color:var(--brand); box-shadow: inset 0 -2px 0 var(--brand); }
   .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   button { font:inherit; font-weight:600; border-radius:8px; padding:9px 14px; cursor:pointer;
-           border:1.5px solid var(--petrol); background:#fff; color:var(--ink); }
-  button.primary { background:var(--petrol); color:#fff; border-color:var(--ink); }
-  button.fault { border-color:var(--copper); }
+           border:1px solid #3A4950; background:var(--raised); color:var(--ink); }
+  button:hover { border-color:var(--brand); }
+  button.primary { background:var(--petrol); color:#fff; border-color:var(--brand); }
+  button.fault { border-color:#7A5A2A; }
   button:disabled { opacity:.45; cursor:default; }
   input { font:inherit; font-size:1.4rem; letter-spacing:.3em; width:9em; text-align:center; padding:8px;
-          border:1.5px solid #6F8F8A; border-radius:8px; }
-  .ar { color:#6B7B7A; font-size:.8em; font-weight:400; margin-inline-start:.35em; }
-  .on .ar, .primary .ar { color:#DDEFE9; }
-  .status { margin-top:12px; padding:10px 12px; border-radius:10px; font-weight:600; border:1.5px solid; }
-  .s-idle { background:#F1F5F4; border-color:#C9D6D3; }
-  .s-learn { background:#FCF1E6; border-color:#EED3B8; }
-  .s-ok { background:#E8F4EE; border-color:#A9D3BD; color:var(--ok); }
-  .s-bad { background:#FDEDEB; border-color:#F3C4BD; color:var(--alert); }
-  .s-big { font-size:1.35rem; padding:16px; animation: pulse 1s ease-in-out infinite alternate; }
-  @keyframes pulse { from { box-shadow:0 0 0 0 rgba(180,35,24,.0);} to { box-shadow:0 0 0 8px rgba(180,35,24,.18);} }
-  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
-  .stat { background:#F6FAF9; border:1px solid #D3E5E1; border-radius:8px; padding:8px 10px; }
+          border:1px solid #3A4950; border-radius:8px; background:var(--sunken); color:var(--ink); }
+  .ar { color:var(--muted); font-size:.8em; font-weight:400; margin-inline-start:.35em; }
+  .on .ar, .primary .ar { color:#BFD7D0; }
+  .status { margin-top:12px; padding:10px 12px; border-radius:8px; font-weight:600; border:1px solid; }
+  .s-idle { background:var(--sunken); border-color:var(--line); color:var(--text2); }
+  .s-learn { background:#2A2213; border-color:#6B5320; color:#F2D49A; }
+  .s-ok { background:#13271F; border-color:#24513C; color:#8FD9B6; }
+  .s-bad { background:#2C1412; border-color:#7A2A22; color:#FFB4A8; }
+  .s-big { font-size:1.3rem; padding:16px; animation: pulse 1s ease-in-out infinite alternate; }
+  @keyframes pulse { from { box-shadow:0 0 0 0 rgba(229,72,58,0);} to { box-shadow:0 0 0 5px rgba(229,72,58,.3);} }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr) !important; gap:8px; margin-top:12px; }
+  @media (max-width: 560px) { .stats { grid-template-columns:repeat(2,1fr) !important; } }
+  .stat { background:var(--sunken); border:1px solid var(--line); border-radius:8px; padding:8px 10px; min-width:0; }
   .stat b { display:block; font-size:1.25rem; }
-  .stat span { font-size:.8rem; color:#4D605E; }
-  canvas { width:100%; height:220px; margin-top:12px; border:1px solid #D3E5E1; border-radius:8px; background:#fff; }
-  .note { font-size:.82rem; color:#4D605E; margin-top:8px; line-height:1.5; }
-  .rtl { direction:rtl; text-align:right; }
+  .stat span { font-size:.78rem; color:var(--text2); }
+  .stat.limit { border-color:#7A2A22; background:#2C1412; } .stat.limit b { color:#FF8A7A; }
+  canvas { width:100%; height:220px; margin-top:12px; border:1px solid var(--line); border-radius:8px; background:var(--sunken); }
+  .note { font-size:.82rem; color:var(--text2); margin-top:8px; line-height:1.5; }
+  .rtl { direction:rtl; text-align:right; color:var(--muted); }
   .pair { display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
-  .code { font-size:2.4rem; font-weight:800; letter-spacing:.25em; color:var(--petrol); }
-  #qr svg { width:150px; height:150px; border:1px solid #D3E5E1; border-radius:8px; background:#fff; }
+  .code { font-size:2.4rem; font-weight:800; letter-spacing:.25em; color:var(--brand); }
+  #qr svg { width:150px; height:150px; border-radius:8px; background:#fff; padding:4px; }
   .hide { display:none !important; }
-  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#B9CCC9; margin-inline-end:6px; }
-  .dot.live { background:#1E7B4F; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#3A4950; margin-inline-end:6px; }
+  .dot.live { background:var(--ok); }
+  .ver { text-align:right; font-size:.7rem; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -89,13 +93,13 @@
     </div>
   </div>
 
-  <div style="text-align:right;font-size:.7rem;color:#8A9B97">sensor v1.3</div>
+  <div class="ver">sensor v1.4</div>
   <div id="status" class="status s-idle">Choose how to use the sensor. <span class="ar">اختر طريقة الاستخدام.</span></div>
-  <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+  <div class="stats">
     <div class="stat"><span>Vibration (RMS, m/s²) · الاهتزاز</span><b id="vRms">–</b></div>
     <div class="stat"><span>Anomaly score · درجة الشذوذ</span><b id="vScore">–</b></div>
     <div class="stat"><span>Learned threshold · الحد المتعلَّم</span><b id="vThr">–</b></div>
-    <div class="stat" style="border-color:#F3C4BD;background:#FDEDEB"><span>Vibration alarm limit · حد الإنذار الفوري للاهتزاز</span><b style="color:#B42318">55</b></div>
+    <div class="stat limit"><span>Vibration alarm limit · حد الإنذار الفوري للاهتزاز</span><b>55</b></div>
   </div>
   <canvas id="chart" width="900" height="220"></canvas>
   <div class="note">
@@ -228,23 +232,23 @@
   function draw() {
     const c = $("chart"), W = c.width, H = c.height; ctx.clearRect(0, 0, W, H);
     const maxR = Math.max(0.5, ...points.map(p => p.rms)) * 1.15;
-    ctx.strokeStyle = "#E3ECEA"; ctx.lineWidth = 1;
+    ctx.strokeStyle = "#26323A"; ctx.lineWidth = 1;
     for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 4); ctx.lineTo(W, H * i / 4); ctx.stroke(); }
     const x = i => (i / (KEEP - 1)) * W, y = v => H - (v / maxR) * (H - 10) - 5;
-    ctx.strokeStyle = "#145A55"; ctx.lineWidth = 2.5; ctx.beginPath();
+    ctx.strokeStyle = "#5FA3C7"; ctx.lineWidth = 2.5; ctx.beginPath();
     points.forEach((p, i) => (i ? ctx.lineTo(x(i), y(p.rms)) : ctx.moveTo(x(i), y(p.rms))));
     ctx.stroke();
     points.forEach((p, i) => {
       if (p.hard || (model && p.score != null && p.score > model.thr)) {
-        ctx.fillStyle = "#B42318"; ctx.beginPath(); ctx.arc(x(i), y(p.rms), 4, 0, 7); ctx.fill();
+        ctx.fillStyle = "#E5483A"; ctx.beginPath(); ctx.arc(x(i), y(p.rms), 4, 0, 7); ctx.fill();
       }
     });
     if (VIB_LIMIT < maxR) {
-      ctx.strokeStyle = "#B42318"; ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.strokeStyle = "#E5483A"; ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5; ctx.beginPath();
       ctx.moveTo(0, y(VIB_LIMIT)); ctx.lineTo(W, y(VIB_LIMIT)); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "#B42318"; ctx.font = "12px system-ui"; ctx.fillText("Alarm limit 55 · حد الإنذار", W - 170, y(VIB_LIMIT) - 4);
+      ctx.fillStyle = "#FF8A7A"; ctx.font = "12px system-ui"; ctx.fillText("Alarm limit 55 · حد الإنذار", W - 170, y(VIB_LIMIT) - 4);
     }
-    ctx.fillStyle = "#4D605E"; ctx.font = "13px system-ui";
+    ctx.fillStyle = "#A9B8B6"; ctx.font = "13px system-ui";
     ctx.fillText("Vibration RMS · الاهتزاز (red = anomaly · أحمر = شذوذ)", 8, 16);
   }
 

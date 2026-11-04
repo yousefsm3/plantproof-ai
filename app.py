@@ -15,6 +15,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+import logging
+import os
+import traceback
+
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -26,12 +30,14 @@ def _drop_stale_plantproof_modules() -> None:
     import hashlib
     import sys
 
-    src = Path(__file__).parent / "plantproof"
-    digest = hashlib.sha256(b"".join(f.read_bytes() for f in sorted(src.glob("*.py")))).hexdigest()
+    root = Path(__file__).parent
+    files = sorted((root / "plantproof").rglob("*.py")) + [root / "ui_theme.py", root / "reliability_ui.py"]
+    digest = hashlib.sha256(b"".join(f.read_bytes() for f in files if f.exists())).hexdigest()
     pkg = sys.modules.get("plantproof")
     if pkg is not None and getattr(pkg, "_source_digest", None) == digest:
         return
-    for name in [m for m in sys.modules if m == "plantproof" or m.startswith("plantproof.")]:
+    for name in [m for m in sys.modules if m in ("plantproof", "ui_theme", "reliability_ui")
+                 or m.startswith("plantproof.")]:
         del sys.modules[name]
     st.cache_resource.clear()
     st.cache_data.clear()
@@ -40,6 +46,22 @@ def _drop_stale_plantproof_modules() -> None:
 
 
 _drop_stale_plantproof_modules()
+
+import ui_theme  # noqa: E402  (after the stale-module guard)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("plantproof.app")
+
+
+def reliability_enabled() -> bool:
+    """The Reliability Brain appears only when PLANTPROOF_RELIABILITY=1 (environment variable,
+    or a root-level Streamlit secret of the same name)."""
+    if os.environ.get("PLANTPROOF_RELIABILITY") == "1":
+        return True
+    try:
+        return str(st.secrets.get("PLANTPROOF_RELIABILITY", "")) == "1"
+    except Exception:
+        return False
 
 from plantproof import (__version__, advisor, blind_test, cost_model, early_warning, fact_check,
                         handover, whatif)
@@ -57,13 +79,14 @@ PAGES = ("Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sens
          "Blind Test", "Cost", "History", "Handover")
 ADVISOR = "Advisor"   # opened from its own highlighted button, not from the page list
 OPS = "Operations Room"   # also opened from its own red button (and by the live alarm)
+RB = "Reliability Brain"  # opened from its own button; present only when the feature flag is on
 PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_search:",
               "Advisor": ":material/psychology:",
               "What If": ":material/science:", "Blind Test": ":material/fact_check:",
               "Cost": ":material/payments:", "History": ":material/history:",
               "Handover": ":material/sync_alt:", "AI Early Warning": ":material/monitor_heart:",
               "AI Fact Check": ":material/verified:", "Live Sensor": ":material/sensors:",
-              "Operations Room": ":material/crisis_alert:"}
+              "Operations Room": ":material/crisis_alert:", "Reliability Brain": ":material/biotech:"}
 LINKEDIN_URL = "https://www.linkedin.com/company/146908832/"   # Yaqen AI public company page
 APP_URL = "https://plantproof-ai.streamlit.app"
 PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing temp (°C)",
@@ -75,8 +98,6 @@ PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing
 SOURCE_AR = {"sensor": "حساس", "operator_log": "سجل مشغّل", "inspection": "فحص",
              "lab": "مختبر", "calibration": "معايرة", "maintenance": "صيانة", "event": "حدث"}
 CASE_AR = {"low": "منخفض", "base": "أساسي", "high": "مرتفع"}
-LABEL_COLORS = {"High": "#145A55", "Medium": "#C8844A", "Low": "#B9CCC9"}
-PETROL, STEEL, COPPER, ALERT = "#145A55", "#7FA9A3", "#C8844A", "#B42318"
 ASSETS = Path(__file__).resolve().parent / "assets"
 DISCLAIMER = ("Concept prototype for the energy sector. Not affiliated with or endorsed by "
               "any company.")
@@ -205,161 +226,10 @@ def svg_data_uri(name: str, recolor: tuple[str, str] | None = None,
 
 
 def inject_theme() -> None:
-    """Industrial look: faint equipment drawing behind the app, card-style metrics."""
-    bg = svg_data_uri("equipment.svg")
-    st.markdown(f"""
-<style>
-[data-testid="stAppViewContainer"] {{
-  background-color: #CBD3D3;
-  background-image: url("{bg}"),
-    repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 2px, rgba(0,0,0,0.03) 2px 4px),
-    linear-gradient(180deg, #E2E7E7 0%, #CDD5D5 55%, #BAC5C5 100%);
-  background-repeat: no-repeat, repeat, no-repeat;
-  background-position: right -40px bottom -20px, 0 0, 0 0;
-  background-size: min(1250px, 100vw) auto, auto, cover;
-  background-attachment: fixed;
-}}
-[data-testid="stSidebar"] {{
-  background: linear-gradient(180deg, #EBEFEF 0%, #D7DEDE 100%);
-  border-right: 1px solid #B6C2C2;
-}}
-[data-testid="stHeader"] {{ background: transparent; }}
-[data-testid="stMetric"] {{
-  background: #EEF6F4; border: 1px solid #CFE3DE;
-  border-left: 5px solid {PETROL}; border-radius: 10px; padding: 10px 14px;
-}}
-/* ---- unified, readable content on top of the equipment background ---- */
-h1, h2, h3 {{ color: #0B2E2D !important; }}
-[data-testid="stHeading"] h3 {{
-  display: inline-block; background: #E3F1EE; padding: 4px 14px;
-  border-radius: 8px; border-left: 4px solid {COPPER};
-}}
-[data-testid="stHeading"] h1 {{
-  display: inline-block; background: rgba(255,255,255,0.9); padding: 2px 14px; border-radius: 10px;
-}}
-[data-testid="stMarkdownContainer"], [data-testid="stCaptionContainer"] {{
-  background: rgba(255,255,255,0.9); border-radius: 8px; padding: 2px 8px;
-}}
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
-[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
-button [data-testid="stMarkdownContainer"],
-[data-testid="stAlert"] [data-testid="stMarkdownContainer"],
-[data-testid="stMetric"] [data-testid="stMarkdownContainer"],
-[data-testid="stTooltipContent"] [data-testid="stMarkdownContainer"],
-label [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0; }}
-[data-testid="stVerticalBlockBorderWrapper"] {{
-  background: #F1F7F6; border-radius: 12px; box-shadow: 0 2px 10px rgba(11,46,45,0.08);
-}}
-[class*="st-key-pp_contra"] {{ background: #FDEDEB !important; border: 1px solid #F3C4BD !important;
-  border-left: 6px solid {ALERT} !important; }}
-[class*="st-key-pp_miss"] {{ background: #FCF1E6 !important; border: 1px solid #EED3B8 !important;
-  border-left: 6px solid {COPPER} !important; }}
-.st-key-pp_kpi_records [data-testid="stMetric"] {{ background: #E6F2EF; border-left-color: {PETROL}; }}
-.st-key-pp_kpi_contra [data-testid="stMetric"] {{ background: #FDEDEB; border-color: #F3C4BD;
-  border-left-color: {ALERT}; }}
-.st-key-pp_kpi_miss [data-testid="stMetric"] {{ background: #FCF1E6; border-color: #EED3B8;
-  border-left-color: {COPPER}; }}
-.st-key-pp_kpi_lead [data-testid="stMetric"] {{ background: #DDEFE9; border-color: #B9DCD3;
-  border-left-color: #0B2E2D; }}
-[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"],
-[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stCaptionContainer"],
-[data-testid="stExpander"] [data-testid="stMarkdownContainer"],
-[data-testid="stExpander"] [data-testid="stCaptionContainer"],
-[data-testid="stTabs"] [data-testid="stMarkdownContainer"],
-[data-testid="stForm"] [data-testid="stMarkdownContainer"] {{ background: transparent; padding: 0; }}
-[data-testid="stPlotlyChart"], [data-testid="stDataFrame"], [data-testid="stExpander"],
-[data-testid="stTabs"], [data-testid="stForm"] {{
-  background: #F6FAF9; border: 1px solid #D3E5E1; border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(11,46,45,0.07);
-}}
-[data-testid="stPlotlyChart"], [data-testid="stTabs"] {{ padding: 8px 10px; }}
-[data-testid="stMetricLabel"] {{ color: {PETROL}; font-weight: 600; }}
-[data-testid="stMetricValue"], [data-testid="stMetricValue"] > div {{
-  white-space: normal !important; overflow: visible !important; text-overflow: clip !important;
-  font-size: 1.55rem; line-height: 1.25; color: #0B2E2D;
-}}
-.pp-ar {{ font-size: .78em; opacity: .6; font-weight: 400; margin-inline-start: .45em; }}
-/* ---- AI Advisor: its own copper button, in the sidebar and floating ---- */
-.st-key-pp_advisor_side button, .st-key-pp_fab button {{
-  background: linear-gradient(135deg, #B8743A 0%, #8F5326 100%) !important;
-  color: #FFFFFF !important; border: none !important; font-weight: 700 !important;
-  box-shadow: 0 6px 16px rgba(143,83,38,0.35) !important;
-}}
-.st-key-pp_advisor_side button {{ width: 100%; padding: 10px 14px !important; margin: 6px 0 10px; }}
-.st-key-pp_advisor_side button:hover, .st-key-pp_fab button:hover {{ filter: brightness(1.08); }}
-.st-key-pp_advisor_side button *, .st-key-pp_fab button * {{ color: #FFFFFF !important; }}
-.st-key-pp_fab {{
-  position: fixed; right: 28px; bottom: 84px; z-index: 1000; width: auto !important;
-}}
-.st-key-pp_fab button {{ border-radius: 999px !important; padding: 12px 20px !important; }}
-.pp-rtl {{ direction: rtl; text-align: right; unicode-bidi: isolate; color: #6B7B7A;
-  font-size: .86rem; line-height: 1.6; margin: -6px 0 8px 0; }}
-.pp-rtl-title {{ font-size: .95rem; font-weight: 600; margin-top: -10px; }}
-.pp-rtl-note {{ font-size: .78rem; }}
-/* ---- clear, solid cards, inputs and buttons (readable on top of the background) ---- */
-[data-testid="stVerticalBlockBorderWrapper"],
-[data-testid="stPlotlyChart"], [data-testid="stDataFrame"], [data-testid="stExpander"],
-[data-testid="stTabs"], [data-testid="stForm"] {{
-  background: #FFFFFF !important; border: 1.5px solid #9DB5B0 !important;
-  box-shadow: 0 4px 14px rgba(11,46,45,0.16) !important;
-}}
-[data-testid="stAlert"] {{ border: 1.5px solid #9DB5B0; border-radius: 10px; }}
-[data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="select"] > div,
-[data-baseweb="base-input"], [data-testid="stNumberInputContainer"] {{
-  background: #FFFFFF !important; border: 1.5px solid #6F8F8A !important; border-radius: 8px !important;
-}}
-[data-baseweb="input"] input, [data-baseweb="textarea"] textarea, [data-baseweb="base-input"] input {{
-  background: #FFFFFF !important; color: #0B2E2D !important;
-}}
-[data-baseweb="input"]:focus-within, [data-baseweb="textarea"]:focus-within,
-[data-baseweb="select"] > div:focus-within {{ border-color: {PETROL} !important;
-  box-shadow: 0 0 0 2px rgba(20,90,85,0.25) !important; }}
-[data-testid="stCheckbox"] label span:first-child {{ border: 1.5px solid #6F8F8A; }}
-[data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-secondaryFormSubmit"] {{
-  background: #FFFFFF !important; border: 1.5px solid {PETROL} !important; color: #0B2E2D !important;
-  font-weight: 600 !important;
-}}
-[data-testid="stBaseButton-secondary"]:hover {{ background: #E6F2EF !important; }}
-[data-testid="stBaseButton-primary"], [data-testid="stBaseButton-primaryFormSubmit"] {{
-  border: 1.5px solid #0B2E2D !important; font-weight: 600 !important;
-  box-shadow: 0 3px 8px rgba(11,46,45,0.25) !important;
-}}
-/* hide the GitHub / Fork / edit icons Streamlit Cloud adds to the top bar */
-[data-testid="stToolbarActions"], .stAppDeployButton, [data-testid="stAppDeployButton"] {{
-  display: none !important; }}
-[class*="st-key-pp_fc_ok"] {{ border-left: 6px solid #1E7B4F !important; background: #F1FAF5 !important; }}
-[class*="st-key-pp_fc_bad"] {{ border-left: 6px solid {ALERT} !important; background: #FDEDEB !important; }}
-[class*="st-key-pp_fc_none"] {{ border-left: 6px solid #8A9B97 !important; background: #F4F6F6 !important; }}
-[data-testid="stMarkdownContainer"]:has(.pp-sign) {{ background: transparent !important; padding: 0 !important; }}
-.pp-sign {{ display: flex; align-items: center; justify-content: center; gap: 12px; margin: 40px 0 10px;
-  color: #0B2E2D; opacity: .92; }}
-.pp-sign-mark {{ width: 40px; height: 40px; flex: none; filter: drop-shadow(0 0 6px rgba(77,163,131,.4)); }}
-.pp-sign-t {{ font-size: .95rem; letter-spacing: .3px; font-weight: 500;
-  background: linear-gradient(100deg, currentColor 0%, currentColor 40%, #4DA383 50%, currentColor 60%, currentColor 100%);
-  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; animation: ppshine 3.5s linear infinite; }}
-.pp-sign-t b {{ font-weight: 800; }}
-.pp-sign-ar {{ font-size: .74rem; opacity: .65; direction: rtl; text-align: left; }}
-.pp-sign-li {{ display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
-  border-radius: 6px; border: 1.5px solid currentColor; color: inherit !important; font-weight: 800;
-  font-size: .85rem; text-decoration: none !important; opacity: .8; transition: all .2s; }}
-.pp-sign-li:hover {{ opacity: 1; color: #0A66C2 !important; border-color: #0A66C2; }}
-@keyframes ppshine {{ from {{ background-position: 100% 0; }} to {{ background-position: -150% 0; }} }}
-.st-key-pp_alarm_go {{ display: none !important; }}
-.st-key-pp_ops_side button {{ width: 100%; padding: 12px 14px !important; margin: 6px 0 2px;
-  background: linear-gradient(135deg, #D0342C 0%, #7A160F 100%) !important; border: 1px solid #FF8A7A !important;
-  box-shadow: 0 6px 18px rgba(180,35,24,.45) !important; font-weight: 800 !important; letter-spacing: .3px; }}
-.st-key-pp_ops_side button * {{ color: #FFFFFF !important; }}
-.st-key-pp_ops_side button:hover {{ filter: brightness(1.1); }}
-.st-key-pp_ops_alarm {{ background: #FDEDEB !important; border: 2px solid {ALERT} !important;
-  border-left: 8px solid {ALERT} !important; }}
-.st-key-pp_ops_alarm h3 {{ color: {ALERT} !important; }}
-.st-key-pp_ops_top {{ border-left: 6px solid {PETROL} !important; background: #F1F8F6 !important; }}
-.st-key-pp_keypoints {{ border-left: 6px solid {COPPER} !important; }}
-.pp-name {{ font-size: 1.25rem; font-weight: 700; color: #0B2E2D; letter-spacing: .2px; }}
-.pp-name span {{ color: {COPPER}; }}
-</style>
-""", unsafe_allow_html=True)
+    """The design system stylesheet (ui_theme.py), with the equipment line art as a faint watermark."""
+    bg = svg_data_uri("equipment.svg", recolor=('stroke="#0B2E2D"', 'stroke="#5C8A84"'),
+                      opacity=('stroke-opacity="0.2"', 'stroke-opacity="0.10"'))
+    st.markdown(ui_theme.stylesheet(bg), unsafe_allow_html=True)
 
 
 def report_html(doc: handover.Handover) -> str:
@@ -372,6 +242,21 @@ def report_html(doc: handover.Handover) -> str:
 def open_advisor() -> None:
     st.session_state["view"] = ADVISOR
     st.session_state["page"] = None   # clear the list so any page click leaves this view
+
+
+def open_view(name: str) -> None:
+    st.session_state["view"] = name
+    st.session_state["page"] = None
+
+
+def page_reliability(ctx: Ctx) -> None:
+    try:
+        import reliability_ui
+    except Exception as exc:   # the Brain is optional: report it, keep the platform running
+        log.exception("Reliability Brain could not be loaded")
+        st.error(f"The Reliability Brain could not be loaded: {exc}")
+        return
+    reliability_ui.render(ctx.store, ctx.sid)
 
 
 def close_advisor() -> None:
@@ -391,66 +276,67 @@ def sidebar_brand() -> None:
 # -------------------------------------------------------------------------- charts
 def confidence_chart(assessments) -> go.Figure:
     items = list(reversed(assessments))
+    tones = {"High": ui_theme.TOKENS["brand"], "Medium": ui_theme.TOKENS["warn"], "Low": ui_theme.TOKENS["border_strong"]}
     fig = go.Figure(go.Bar(
         x=[a.confidence for a in items], y=[bi_plain(a.name) for a in items], orientation="h",
-        marker_color=[LABEL_COLORS[a.confidence_label] for a in items],
+        marker_color=[tones[a.confidence_label] for a in items],
         text=[f"{a.confidence:.0%} · {a.confidence_label}" for a in items],
         textposition="auto", hovertemplate="%{y}: %{x:.0%}<extra></extra>"))
-    fig.update_layout(paper_bgcolor="#F6FAF9", plot_bgcolor="#FFFFFF", height=280, margin=dict(l=10, r=10, t=10, b=10),
-                      xaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")))
+    ui_theme.style_fig(fig, 280, x_title=bi_plain("Evidence-based confidence (%)"))
+    fig.update_xaxes(range=[0, 1], tickformat=".0%")
     return fig
 
 
 def trend_chart(obs, param: str, ctx: Ctx, highlight: set[str]) -> go.Figure:
     series = [o for o in obs if o.source_type == "sensor" and o.parameter == param]
     label = bi_plain(PARAM_LABELS.get(param, param))
+    t = ui_theme.TOKENS
     fig = go.Figure(go.Scatter(
         x=[o.timestamp for o in series], y=[o.value for o in series], mode="lines+markers",
-        name=label, line=dict(color=PETROL, width=2),
+        name=label, line=dict(color=t["info"], width=2),
         marker=dict(size=4), customdata=[o.record_id for o in series],
         hovertemplate="%{customdata}<br>%{x}<br>%{y}<extra></extra>"))
     hot = [o for o in series if o.record_id in highlight]
     if hot:
         fig.add_trace(go.Scatter(
             x=[o.timestamp for o in hot], y=[o.value for o in hot], mode="markers",
-            name=bi_plain("Linked to a contradiction"), marker=dict(color=ALERT, size=9),
+            name=bi_plain("Linked to a contradiction"), marker=dict(color=t["crit"], size=9),
             customdata=[o.record_id for o in hot],
             hovertemplate="%{customdata}<br>%{y}<extra></extra>"))
     limit = ctx.cfg.limits.get(param)
     if limit:
-        fig.add_hline(y=limit.alarm, line_dash="dash", line_color=ALERT,
+        fig.add_hline(y=limit.alarm, line_dash="dash", line_color=t["crit"],
                       annotation_text=f"Alarm · حد الإنذار {limit.alarm:g}",
-                      annotation_position="top left")
-    fig.update_layout(paper_bgcolor="#F6FAF9", plot_bgcolor="#FFFFFF", height=300, margin=dict(l=10, r=10, t=10, b=10), showlegend=bool(hot),
-                      legend=dict(orientation="h", y=-0.2), yaxis_title=label)
+                      annotation_position="top left", annotation_font_color=t["crit"])
+    ui_theme.style_fig(fig, 300, x_title=bi_plain("Time"), y_title=label, legend=bool(hot))
     return fig
 
 
 def comparison_chart(rows) -> go.Figure:
     names = [bi_plain(r["hypothesis"]) for r in rows]
+    t = ui_theme.TOKENS
     fig = go.Figure([
         go.Bar(name=bi_plain("Baseline"), x=names, y=[r["baseline_confidence"] for r in rows],
-               marker_color="#B9CCC9"),
+               marker_color=t["border_strong"]),
         go.Bar(name=bi_plain("What If"), x=names, y=[r["scenario_confidence"] for r in rows],
-               marker_color=PETROL),
+               marker_color=t["info"]),
     ])
-    fig.update_layout(paper_bgcolor="#F6FAF9", plot_bgcolor="#FFFFFF", barmode="group", height=340, margin=dict(l=10, r=10, t=10, b=10),
-                      yaxis=dict(range=[0, 1], tickformat=".0%", title=bi_plain("Confidence")),
-                      legend=dict(orientation="h", y=1.1))
+    fig.update_layout(barmode="group")
+    ui_theme.style_fig(fig, 340, y_title=bi_plain("Evidence-based confidence (%)"), legend=True)
+    fig.update_yaxes(range=[0, 1], tickformat=".0%")
     return fig
 
 
 def cost_chart(est: cost_model.CostEstimate) -> go.Figure:
     cases = [f"{c.title()} · {CASE_AR[c]}" for c in cost_model.CASES]
-    colors = [PETROL, STEEL, COPPER]
+    colors = ui_theme.CHART["series"]
     fig = go.Figure([
         go.Bar(name=bi_plain(line.component), x=cases, y=[line.low, line.base, line.high],
                marker_color=colors[i % len(colors)])
         for i, line in enumerate(est.lines)
     ])
-    fig.update_layout(paper_bgcolor="#F6FAF9", plot_bgcolor="#FFFFFF", barmode="stack", height=320, margin=dict(l=10, r=10, t=10, b=10),
-                      yaxis_title=f"Cost · التكلفة ({est.currency_symbol})",
-                      legend=dict(orientation="h", y=1.1))
+    fig.update_layout(barmode="stack")
+    ui_theme.style_fig(fig, 320, y_title=f"Cost · التكلفة ({est.currency_symbol})", legend=True)
     return fig
 
 
@@ -726,28 +612,27 @@ def page_advisor(ctx: Ctx) -> None:
 # ------------------------------------------------------------- AI early warning
 def ew_chart(ew: early_warning.EarlyWarning) -> go.Figure:
     xs = [h.timestamp for h in ew.hours]
+    t = ui_theme.TOKENS
     fig = go.Figure(go.Scatter(
-        x=xs, y=[h.score for h in ew.hours], mode="lines+markers", line=dict(color=PETROL, width=2.5),
-        marker=dict(size=5, color=[ALERT if h.score > ew.threshold else PETROL for h in ew.hours]),
+        x=xs, y=[h.score for h in ew.hours], mode="lines+markers", line=dict(color=t["info"], width=2.5),
+        marker=dict(size=5, color=[t["crit"] if h.score > ew.threshold else t["info"] for h in ew.hours]),
         name=bi_plain("Anomaly score"), hovertemplate="%{x}<br>%{y}<extra></extra>"))
-    fig.add_hline(y=ew.threshold, line_dash="dash", line_color=COPPER,
+    fig.add_hline(y=ew.threshold, line_dash="dash", line_color=t["warn"],
                   annotation_text=f"Learned threshold · الحد المتعلَّم {ew.threshold:g}",
-                  annotation_position="top left")
-    fig.add_vrect(x0=xs[0], x1=xs[ew.train_hours - 1], fillcolor="#DDEFE9", opacity=0.5,
-                  line_width=0)
+                  annotation_position="top left", annotation_font_color=t["warn"])
+    fig.add_vrect(x0=xs[0], x1=xs[ew.train_hours - 1], fillcolor=t["brand"], opacity=0.08, line_width=0)
     fig.add_annotation(x=xs[0], y=1, yref="paper", showarrow=False, xanchor="left",
-                       text="Learning normal · تعلّم الطبيعي", font=dict(color=PETROL))
+                       text="Learning normal · تعلّم الطبيعي", font=dict(color=t["brand"]))
     if ew.first_warning:
-        fig.add_vline(x=ew.first_warning.timestamp, line_color=COPPER, line_width=2)
+        fig.add_vline(x=ew.first_warning.timestamp, line_color=t["warn"], line_width=2)
         fig.add_annotation(x=ew.first_warning.timestamp, y=1, yref="paper", showarrow=False,
-                           text="AI warning · إنذار مبكر", xanchor="right", font=dict(color=COPPER))
+                           text="AI warning · إنذار مبكر", xanchor="right", font=dict(color=t["warn"]))
     if ew.first_alarm:
-        fig.add_vline(x=ew.first_alarm[0], line_color=ALERT, line_width=2, line_dash="dot")
+        fig.add_vline(x=ew.first_alarm[0], line_color=t["crit"], line_width=2, line_dash="dot")
         fig.add_annotation(x=ew.first_alarm[0], y=0.9, yref="paper", showarrow=False,
-                           text="First alarm · أول إنذار", xanchor="left", font=dict(color=ALERT))
-    fig.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", height=360,
-                      margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
-                      yaxis_title=bi_plain("Anomaly score"))
+                           text="First alarm · أول إنذار", xanchor="left", font=dict(color=t["crit"]))
+    ui_theme.style_fig(fig, 360, x_title=bi_plain("Time"),
+                       y_title=bi_plain("Anomaly score (dimensionless, not a probability)"))
     return fig
 
 
@@ -921,54 +806,12 @@ def set_ops_panel(panel: str) -> None:
     st.session_state["ops_panel"] = None if st.session_state.get("ops_panel") == panel else panel
 
 
-def ops_css() -> None:
-    """War-room look, only on this page."""
-    st.markdown(f"""<style>
-[data-testid="stAppViewContainer"] {{ background: radial-gradient(1200px 500px at 50% -10%, #3A0B08 0%, #170605 55%, #0D0303 100%) !important; }}
-[data-testid="stMain"] h1, [data-testid="stMain"] h2, [data-testid="stMain"] h3, [data-testid="stMain"] h4 {{ color: #FFE9E6 !important; }}
-[data-testid="stMain"] [data-testid="stHeading"] h1 {{ background: transparent !important; }}
-.st-key-pp_ops_head {{ background: linear-gradient(90deg, #7A160F, #B42318) !important; border: 1px solid #FF6B5A !important;
-  box-shadow: 0 0 0 1px #3A0B08, 0 10px 30px rgba(180,35,24,.45) !important; }}
-.st-key-pp_ops_head.pp-live, .st-key-pp_ops_head:has(.pp-alarm-on) {{ animation: ppglow 1.2s ease-in-out infinite alternate; }}
-@keyframes ppglow {{ from {{ box-shadow: 0 0 0 0 rgba(255,80,60,.0), 0 10px 30px rgba(180,35,24,.45); }}
-                     to   {{ box-shadow: 0 0 0 6px rgba(255,80,60,.35), 0 10px 30px rgba(180,35,24,.6); }} }}
-.st-key-pp_ops_head * {{ color: #FFFFFF !important; background: transparent !important; }}
-[class*="st-key-pp_ops_kpi"] [data-testid="stMetric"] {{ background: #1E0807 !important; border: 1px solid #5A1A14 !important;
-  border-left: 5px solid #E5483A !important; }}
-[class*="st-key-pp_ops_kpi"] [data-testid="stMetricLabel"], [class*="st-key-pp_ops_kpi"] [data-testid="stMetricLabel"] * {{ color: #FFB4A8 !important; }}
-[class*="st-key-pp_ops_kpi"] [data-testid="stMetricValue"], [class*="st-key-pp_ops_kpi"] [data-testid="stMetricValue"] * {{ color: #FFFFFF !important; }}
-[class*="st-key-pp_ops_kpi"] [data-testid="stMetricDelta"] * {{ color: #FFB4A8 !important; }}
-[class*="st-key-pp_ops_card"] {{ background: #FFFFFF !important; border: 1px solid #5A1A14 !important;
-  border-top: 5px solid #B42318 !important; }}
-[class*="st-key-pp_ops_tab"] button {{ background: #2A0B09 !important; color: #FFE9E6 !important;
-  border: 1px solid #7A2A22 !important; width: 100%; font-weight: 700 !important; }}
-[class*="st-key-pp_ops_tab"] button * {{ color: #FFE9E6 !important; }}
-[class*="st-key-pp_ops_tab_on"] button {{ background: #B42318 !important; border-color: #FF8A7A !important; }}
-.st-key-pp_ops_case_low [data-testid="stMetric"] {{ border-left-color: #1E7B4F !important; }}
-.st-key-pp_ops_case_base [data-testid="stMetric"] {{ border-left-color: #C8844A !important; }}
-.st-key-pp_ops_case_high [data-testid="stMetric"] {{ border-left-color: #B42318 !important; }}
-[data-testid="stMain"] .pp-sign {{ color: #FFE9E6; }}
-.pp-tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 4px 0 10px; }}
-.pp-tile {{ background: #1E0807; border: 1px solid #5A1A14; border-left: 5px solid #E5483A; border-radius: 10px;
-  padding: 10px 12px; }}
-.pp-tile.hot {{ background: linear-gradient(135deg, #5C110B, #2A0807); border-color: #FF6B5A; }}
-.pp-tile.case-low {{ border-left-color: #2FA36B; }} .pp-tile.case-base {{ border-left-color: #E0A060; }}
-.pp-tile.case-high {{ border-left-color: #FF4D3D; }}
-.pp-tl {{ color: #FFB4A8; font-size: .82rem; font-weight: 600; line-height: 1.3; }}
-.pp-tl span, .pp-tn span {{ color: #C98C84; font-size: .78em; font-weight: 400; }}
-.pp-tv {{ color: #FFFFFF; font-size: 1.7rem; font-weight: 800; line-height: 1.25; margin: 2px 0; }}
-.pp-tn {{ color: #F3D3CE; font-size: .8rem; line-height: 1.35; }}
-[data-testid="stElementContainer"]:has(> [data-testid="stMarkdown"] style) {{ display: none; }}
-[data-testid="stMain"] [data-testid="stMarkdownContainer"]:has(.pp-tiles) {{ background: transparent !important; padding: 0 !important; }}
-[class*="st-key-pp_ops_tab"] button {{ min-height: 64px; }}
-</style>""", unsafe_allow_html=True)
-
-
-def ops_tile(label: str, value: str, note: str = "", note_ar: str = "", tone: str = "") -> str:
-    """One dark KPI tile (HTML): English label with small Arabic, big value, short note."""
+def ops_tile(label: str, value: str, note: str = "", note_ar: str = "", tone: str = "neutral",
+             small: bool = False) -> str:
+    """One KPI tile (HTML). tone = ok | warn | crit | info | brand | neutral (design system)."""
     e = html.escape
     return (f'<div class="pp-tile {tone}"><div class="pp-tl">{e(label)} <span>{e(ar(label))}</span></div>'
-            f'<div class="pp-tv">{e(value)}</div>'
+            f'<div class="pp-tv{" sm" if small else ""}">{e(value)}</div>'
             f'<div class="pp-tn">{e(note)} <span>{e(note_ar)}</span></div></div>')
 
 
@@ -980,13 +823,13 @@ def _ops_panel(ctx: Ctx, panel: str) -> None:
     r, top = ctx.result, ctx.result.top
     if panel == "hyp":
         tiles([ops_tile(a.name, pct(a.confidence), why_line(a)[0], why_line(a)[1],
-                        "hot" if a.rank == 1 else "") for a in r.assessments[:3]])
+                        "brand" if a.rank == 1 else "neutral") for a in r.assessments[:3]])
     elif panel == "cost" and top:
         est = cost_model.estimate(top.hypothesis_id, ctx.costs).totals
         st.caption(f"{bi('If the leading cause is confirmed')}: {top.name} {gray(ar(top.name))}")
         notes = {"low": ("Best case", "أفضل حالة"), "base": ("Most likely", "الأرجح"),
                  "high": ("Worst case", "أسوأ حالة")}
-        tiles([ops_tile(case.title(), money(est[case], ctx), *notes[case], f"case-{case}")
+        tiles([ops_tile(case.title(), money(est[case], ctx), *notes[case], "info" if case == "base" else "neutral")
                for case in cost_model.CASES])
     elif panel == "contra":
         headlines(r.contradictions, "ops_c", "No contradictions detected.")
@@ -995,10 +838,11 @@ def _ops_panel(ctx: Ctx, panel: str) -> None:
     elif panel == "ew":
         ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
         if ew and ew.first_warning:
-            tiles([ops_tile("First AI warning", ew.first_warning.timestamp.replace("T", " ")[5:16]),
-                   ops_tile("First alarm", ew.first_alarm[0].replace("T", " ")[5:16] if ew.first_alarm else "—"),
+            tiles([ops_tile("First AI warning", ew.first_warning.timestamp.replace("T", " ")[5:16], tone="info", small=True),
+                   ops_tile("First alarm", ew.first_alarm[0].replace("T", " ")[5:16] if ew.first_alarm else "—",
+                            tone="neutral", small=True),
                    ops_tile("Warning lead time", f"{ew.lead_hours:g} h" if ew.lead_hours else "Same hour",
-                            tone="hot")])
+                            tone="info")])
         else:
             st.info(with_ar("No unusual behaviour detected in this window."))
     target = next(t for k, _i, _n, t in OPS_PANELS if k == panel)
@@ -1031,38 +875,97 @@ def _ops_advisor(ctx: Ctx) -> None:
 
 def page_ops_room(ctx: Ctx) -> None:
     r, top = ctx.result, ctx.result.top
-    ops_css()
     alarm = st.session_state.get("pp_live_alarm")
-    with st.container(border=True, key="pp_ops_head"):
-        h1, h2 = st.columns([4, 1])
-        with h1:
-            if alarm:
-                st.markdown(f"## :material/crisis_alert: LIVE ALARM · {ctx.meta['asset_name']}")
-                st.markdown(f"Abnormal vibration detected by the live sensor at **{alarm}**. "
-                            f"Line 3 at risk.  \n"
-                            f":small[إنذار مباشر: الحساس اكتشف اهتزازًا غير طبيعي الساعة {alarm}.]")
-            else:
-                st.markdown(f"## :material/crisis_alert: {bi('Operations Room')} · {ctx.meta['asset_name']}")
-                st.markdown(f"{ctx.meta['summary']}  \n:small[{ar(ctx.meta['summary'])}]")
-        with h2:
-            if alarm:
-                st.button(f":material/done: {bi('Acknowledge')}", key="pp_ack", on_click=ack_alarm)
+    brain = None
+    if reliability_enabled():
+        try:
+            import reliability_ui
+            brain = reliability_ui.ops_summary(ctx.store, ctx.sid)
+        except Exception as exc:   # the Brain is optional here: say so, keep the room working
+            log.exception("Reliability Brain summary failed")
+            brain = exc
 
+    # 1. status banner: red only for a genuine critical condition
+    risk = brain[0].risk if brain and not isinstance(brain, Exception) else None
+    e = html.escape
+    st.title(f"{PAGE_ICONS[OPS]} {bi('Operations Room')}")
+    if alarm:
+        tone, head = "crit live", f"LIVE ALARM · {ctx.meta['asset_name']}"
+        sub = f"Abnormal vibration detected by the live sensor at {alarm}. Line 3 at risk."
+        sub_ar = f"إنذار مباشر: الحساس اكتشف اهتزازًا غير طبيعي الساعة {alarm}."
+    elif risk == "Critical":
+        tone, head = "crit", f"Critical risk · {ctx.meta['asset_name']}"
+        sub, sub_ar = ctx.meta["summary"], ar(ctx.meta["summary"])
+    else:
+        tone, head = "warn", f"Trip under investigation · {ctx.meta['asset_name']}"
+        sub, sub_ar = ctx.meta["summary"], ar(ctx.meta["summary"])
+    b1, b2 = st.columns([5, 1])
+    b1.markdown(f'<div class="pp-banner {tone}"><div class="t">{e(head)}</div><div class="s">{e(sub)}</div>'
+                f'<div class="a">{e(sub_ar)}</div></div>', unsafe_allow_html=True)
+    if alarm:
+        b2.button(f":material/done: {bi('Acknowledge')}", key="pp_ack", on_click=ack_alarm)
+
+    # 2. the three things to know first
+    checks = advisor.next_best_checks(ctx.obs, ctx.cfg, r)
+    nxt = checks[0] if checks else None
+    blockers = len(r.contradictions) + len(r.missing)
     ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
+    lead_tone = "brand" if top and top.confidence_label == "High" else "warn" if top else "neutral"
+    tiles([
+        ops_tile("Most likely cause", top.name if top else "Undetermined",
+                 f"{pct(top.confidence)} evidence-based confidence · {why_line(top)[0]}" if top else "",
+                 ar(top.name) if top else "", lead_tone, small=True),
+        ops_tile("Next recommended action", nxt["title"] if nxt else "Continue monitoring",
+                 (f"would change the conclusion by up to {nxt['impact']:.2f}" if nxt else ""),
+                 nxt["title_ar"] if nxt else "", "warn" if nxt else "ok", small=True),
+        ops_tile("Before restart", f"{blockers} open item(s)" if blockers else "Nothing open",
+                 f"{len(r.contradictions)} conflicting · {len(r.missing)} missing", "قبل إعادة التشغيل",
+                 "crit" if r.contradictions else "warn" if r.missing else "ok", small=True),
+    ])
+
+    # 3. supporting indicators, quieter
     est = cost_model.estimate(top.hypothesis_id, ctx.costs).totals if top else None
     tiles([
-        ops_tile("Leading hypothesis", pct(top.confidence) if top else "—",
-                 top.name if top else "", ar(top.name) if top else "", "hot"),
         ops_tile("AI early warning", f"{ew.lead_hours:g} h" if ew and ew.warned_before_alarm else "—",
-                 "before the first alarm", "قبل أول إنذار"),
-        ops_tile("Contradictions", str(len(r.contradictions)), "records disagree", "سجلات متعارضة"),
-        ops_tile("Missing evidence", str(len(r.missing)), "checks not done", "فحوصات ناقصة"),
-        ops_tile("Cost if confirmed", money(est["base"], ctx) if est else "—", "most likely", "الأرجح"),
+                 "before the first alarm", "قبل أول إنذار", "info", small=True),
+        ops_tile("Contradictions", str(len(r.contradictions)), "records disagree", "سجلات متعارضة",
+                 "crit" if r.contradictions else "ok", small=True),
+        ops_tile("Missing evidence", str(len(r.missing)), "checks not done", "فحوصات ناقصة",
+                 "warn" if r.missing else "ok", small=True),
+        ops_tile("Financial exposure", money(est["base"], ctx) if est else "—", "if the leading cause is confirmed",
+                 "توضيحية", "neutral", small=True),
     ])
+
+    # 4. Reliability Brain, read-only (only with the feature flag)
+    if isinstance(brain, Exception):
+        st.warning(f"Reliability Brain summary unavailable: {brain}")
+    elif brain:
+        rep, counts, outstanding, first = brain
+        st.markdown(f"**{PAGE_ICONS[RB]} {bi('Reliability Brain')}** "
+                    f"{gray('ملخص للقراءة فقط · فحص من ثماني مراحل')}")
+        tiles([
+            ops_tile("Equipment health", rep.condition, f"data quality {rep.grade}", "حالة المعدة",
+                     ui_theme.tone(rep.condition), small=True),
+            ops_tile("Investigation status", rep.overall_status, "8-stage examination", "حالة الفحص",
+                     "ok" if rep.overall_status == "Complete" else "warn", small=True),
+            ops_tile("Highest-priority risk", rep.risk, rep.leading_name or "no supported mechanism", "أعلى خطر",
+                     ui_theme.tone(rep.risk), small=True),
+            ops_tile("Verified findings", str(counts.get("verified", 0)),
+                     f"{counts.get('rejected', 0)} rejected", "نتائج مؤكدة",
+                     "crit" if counts.get("rejected") else "ok", small=True),
+            ops_tile("Outstanding evidence", str(outstanding), "for the leading explanation", "أدلة ناقصة",
+                     "warn" if outstanding else "ok", small=True),
+            ops_tile("Recommended next action", first.priority if first else "—",
+                     first.action_en if first else "", first.action_ar if first else "",
+                     {"P1": "crit", "P2": "warn"}.get(first.priority, "info") if first else "neutral", small=True),
+        ])
+        st.button(f":material/open_in_new: {bi('Open the Reliability Brain')}", key="pp_ops_rb",
+                  on_click=open_view, args=(RB,))
 
     left, right = st.columns([2, 1])
     with left:
         panel = st.session_state.get("ops_panel", "hyp")
+        st.markdown(f"**{bi('Investigation detail')}** {gray('اختر قسمًا')}")
         for col, (key, icon, name, _t) in zip(st.columns(len(OPS_PANELS)), OPS_PANELS):
             on = "_on" if panel == key else ""
             with col.container(key=f"pp_ops_tab{on}_{key}"):
@@ -1074,7 +977,7 @@ def page_ops_room(ctx: Ctx) -> None:
         with st.container(border=True, key="pp_ops_card_actions"):
             a, b = st.columns(2)
             with a:
-                st.markdown(f"**:material/task_alt: {bi('Do this now')}**")
+                st.markdown(f"**:material/task_alt: {bi('If the leading cause is confirmed')}**")
                 if top:
                     st.markdown("\n".join(f"{n}. {x}  \n   {gray(ar(x))}"
                                           for n, x in enumerate(top.recommended_actions, 1)))
@@ -1532,9 +1435,13 @@ def main() -> None:
     sidebar_brand()
     st.sidebar.caption(with_ar("Evidence-first investigations for plant incidents"))
     st.sidebar.button(f"{PAGE_ICONS[OPS]} Operations Room :small[غرفة العمليات]", key="pp_ops_side",
-                      on_click=open_ops_room, type="primary")
+                      on_click=open_ops_room)
+    rb_on = reliability_enabled()
+    if rb_on:
+        st.sidebar.button(f"{PAGE_ICONS[RB]} Reliability Brain :small[عقل الموثوقية]", key="pp_rb_side",
+                          on_click=open_view, args=(RB,))
     st.sidebar.button(f"{PAGE_ICONS[ADVISOR]} AI Advisor · المساعد الذكي", key="pp_advisor_side",
-                      on_click=open_advisor, type="primary")
+                      on_click=open_advisor)
     try:   # a phone that scanned the pairing QR opens straight on the Live Sensor page
         if st.query_params.get("pair") and not st.session_state.get("pp_pair_opened"):
             st.session_state["pp_pair_opened"] = True
@@ -1544,7 +1451,7 @@ def main() -> None:
     nav = st.sidebar.radio(bi("Navigate"), PAGES, key="page", on_change=close_advisor,
                            format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
     view = st.session_state.get("view")
-    page = view if view in (ADVISOR, OPS) else (nav or "Overview")
+    page = view if view in (ADVISOR, OPS) or (view == RB and rb_on) else (nav or "Overview")
     titles = {s["id"]: s["title"] for s in index}
     sid = st.sidebar.selectbox(bi("Scenario"), list(titles),
                                format_func=lambda k: bi_plain(titles[k]), key="scenario")
@@ -1564,16 +1471,24 @@ def main() -> None:
 
     with st.container(key="pp_alarm_go"):       # clicked by the live sensor's red alarm bar
         st.button("Live alarm", key="pp_alarm_btn", on_click=go_ops_room)
-    if page not in (ADVISOR, OPS):
+    if page not in (ADVISOR, OPS, RB):
         with st.container(key="pp_fab"):
             st.button(f"{PAGE_ICONS[ADVISOR]} Ask the AI Advisor · اسأل المساعد",
                       key="pp_advisor_fab", on_click=open_advisor)
-    {"Overview": page_overview, "Evidence": page_evidence, "Advisor": page_advisor,
-     "What If": page_whatif,
-     "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,
-     "Handover": page_handover, "AI Early Warning": page_early_warning,
-     "AI Fact Check": page_fact_check, "Live Sensor": page_live_sensor,
-     "Operations Room": page_ops_room}[page](ctx)
+    pages = {"Overview": page_overview, "Evidence": page_evidence, "Advisor": page_advisor,
+             "What If": page_whatif,
+             "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,
+             "Handover": page_handover, "AI Early Warning": page_early_warning,
+             "AI Fact Check": page_fact_check, "Live Sensor": page_live_sensor,
+             "Operations Room": page_ops_room, RB: page_reliability}
+    try:
+        pages[page](ctx)
+    except Exception as exc:   # one page failing must never take the platform down
+        log.exception("page %s failed", page)
+        st.error(f"This page could not be shown: {type(exc).__name__}: {exc}  \n"
+                 + gray("تعذّر عرض هذه الصفحة. باقي المنصة يعمل."), icon=":material/error:")
+        with st.expander(bi("Technical details")):
+            st.code("".join(traceback.format_exception(exc))[-3000:])
     yaqen_footer()
 
 

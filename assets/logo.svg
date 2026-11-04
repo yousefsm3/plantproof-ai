@@ -1,23 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="PlantProof AI mark">
-  <!-- Original PlantProof AI mark: a minimal neural node network (AI) on a petrol-green tile -->
-  <defs>
-    <linearGradient id="pp-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1E6B64"/>
-      <stop offset="1" stop-color="#0B2E2D"/>
-    </linearGradient>
-  </defs>
-  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#pp-bg)"/>
-  <g stroke="#DCEBE8" stroke-width="2.4" stroke-linecap="round" stroke-opacity="0.85">
-    <line x1="32" y1="32" x2="32" y2="15"/>
-    <line x1="32" y1="32" x2="17.5" y2="41"/>
-    <line x1="32" y1="32" x2="46.5" y2="41"/>
-    <line x1="32" y1="15" x2="17.5" y2="41" stroke-opacity="0.35"/>
-    <line x1="32" y1="15" x2="46.5" y2="41" stroke-opacity="0.35"/>
-    <line x1="17.5" y1="41" x2="46.5" y2="41" stroke-opacity="0.35"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="64" height="64" role="img" aria-label="Yaqen AI">
+  <!-- Yaqen AI mark: network "Y" (three white nodes, green centre node) on a dark tile -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" fill="#0B0F14"/>
+  <g transform="translate(512 512) scale(0.8) translate(-575 -527)">
+    <g stroke="#FFFFFF" stroke-width="56" stroke-linecap="round">
+      <line x1="325" y1="242" x2="575" y2="540"/><line x1="823" y1="242" x2="575" y2="540"/>
+      <line x1="575" y1="540" x2="575" y2="813"/>
+    </g>
+    <g fill="#FFFFFF"><circle cx="325" cy="242" r="91"/><circle cx="823" cy="242" r="91"/><circle cx="575" cy="813" r="91"/></g>
+    <circle cx="575" cy="540" r="115" fill="#4DA383"/>
   </g>
-  <circle cx="32" cy="15" r="4.6" fill="#FFFFFF"/>
-  <circle cx="17.5" cy="41" r="4.6" fill="#FFFFFF"/>
-  <circle cx="46.5" cy="41" r="4.6" fill="#FFFFFF"/>
-  <circle cx="32" cy="32" r="6.6" fill="#C8844A"/>
-  <circle cx="32" cy="32" r="2.6" fill="#0B2E2D"/>
 </svg>

@@ -72,7 +72,7 @@ from plantproof.evidence_engine import analyse
 from plantproof.storage import Store
 from plantproof.translations import ar, bi, bi_plain
 
-st.set_page_config(page_title="PlantProof AI", page_icon=":material/hub:", layout="wide",
+st.set_page_config(page_title="PlantProof AI", page_icon=str(Path(__file__).resolve().parent / "assets" / "favicon.png"), layout="wide",
                    initial_sidebar_state="expanded")
 
 PAGES = ("Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
@@ -269,8 +269,11 @@ def sidebar_brand() -> None:
         st.logo(str(ASSETS / "logo.svg"), size="large")
     except Exception:  # an older Streamlit without st.logo: the name below still shows
         pass
-    st.sidebar.markdown('<div class="pp-name">PlantProof <span>AI</span></div>',
-                        unsafe_allow_html=True)
+    by = '<span class="pp-by-name">Yaqen AI</span> <span class="pp-by-ar">يقين</span>'
+    if LINKEDIN_URL:
+        by = f'<a href="{html.escape(LINKEDIN_URL)}" target="_blank" rel="noopener">{by}</a>'
+    st.sidebar.markdown('<div class="pp-name">PlantProof <span>AI</span></div>'
+                        f'<div class="pp-by">by {by}</div>', unsafe_allow_html=True)
 
 
 # -------------------------------------------------------------------------- charts

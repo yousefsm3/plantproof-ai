@@ -170,6 +170,11 @@ code {{ color: #BFD7D0 !important; background: var(--pp-sunken) !important; }}
 .pp-rtl-note {{ font-size: .78rem; }}
 .pp-name {{ font-size: 1.2rem; font-weight: 750; color: var(--pp-text); letter-spacing: .2px; }}
 .pp-name span {{ color: var(--pp-brand); }}
+.pp-by {{ font-size: .8rem; color: var(--pp-muted); margin: -2px 0 6px; letter-spacing: .2px; }}
+.pp-by a {{ color: inherit; text-decoration: none; }}
+.pp-by .pp-by-name {{ color: var(--pp-text); font-weight: 700; }}
+.pp-by .pp-by-ar {{ color: var(--pp-brand); font-weight: 600; }}
+.pp-by a:hover .pp-by-name {{ color: var(--pp-brand); }}
 /* brand signature */
 [data-testid="stMarkdownContainer"]:has(.pp-sign) {{ background: transparent !important; padding: 0 !important; }}
 .pp-sign {{ display: flex; align-items: center; justify-content: center; gap: 12px; margin: 40px 0 10px;

@@ -63,7 +63,7 @@ def alarm_flow(page, frame) -> bool:
     ok = "LIVE ALARM" in text and "Operations Room" in text
     print("operations room opened with LIVE ALARM:", ok)
     if "Operations Room" in os.environ.get("PRINT_SHOTS", ""):
-        jpg = page.screenshot(type="jpeg", quality=55, full_page=True)
+        jpg = page.screenshot(type="jpeg", quality=88, full_page=False)
         print("SHOT-BEGIN Alarm")
         print(base64.b64encode(jpg).decode())
         print("SHOT-END Alarm")
@@ -108,7 +108,8 @@ def main() -> int:
     bad = 0
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1400, "height": 1000})
+        page = browser.new_page(viewport={"width": 1400, "height": 1000},
+                                device_scale_factor=float(os.environ.get("SHOT_SCALE", "2")))
         page.goto(URL, wait_until="domcontentloaded", timeout=60_000)
         try:
             page.get_by_role("button", name="Yes, get this app back up").click(timeout=10_000)
@@ -129,7 +130,7 @@ def main() -> int:
                 hit = next((e for e in ERRORS if e in text), None)
                 page.screenshot(path=str(out / f"{name.replace(' ', '_')}.png"), full_page=True)
                 if name in os.environ.get("PRINT_SHOTS", "").split(","):
-                    jpg = page.screenshot(type="jpeg", quality=55, full_page=True)
+                    jpg = page.screenshot(type="jpeg", quality=88, full_page=False)
                     print(f"SHOT-BEGIN {name}")
                     print(base64.b64encode(jpg).decode())
                     print(f"SHOT-END {name}")

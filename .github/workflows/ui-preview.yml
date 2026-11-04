@@ -1,0 +1,47 @@
+# Runs the app with real Streamlit on the working branch and checks every page in a real
+# browser at desktop, tablet and phone widths, with the Reliability Brain flag off and on.
+name: UI preview (real Streamlit)
+
+on:
+  push:
+    branches: [reliability-brain]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        flag: ["0", "1"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install -r requirements.txt playwright==1.48.0
+          python -m playwright install --with-deps chromium
+      - name: Unit tests
+        run: python -m unittest discover -s tests -t .
+      - name: Start the app
+        env:
+          PLANTPROOF_RELIABILITY: ${{ matrix.flag }}
+          PLANTPROOF_DB: /tmp/pp.db
+          PLANTPROOF_RB_DB: /tmp/rb.db
+        run: |
+          nohup streamlit run app.py --server.headless true --server.port 8501 > /tmp/streamlit.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:8501/_stcore/health && break; sleep 2; done
+      - name: Check pages
+        env:
+          SHOTS: "1"
+          PAGES: ${{ matrix.flag == '1' && 'Overview,Operations Room,Reliability Brain,AI Early Warning,Evidence,AI Fact Check,Live Sensor,What If,Blind Test,Cost,History,Handover' || 'Overview,Operations Room,AI Early Warning,Evidence,AI Fact Check,Live Sensor,What If,Blind Test,Cost,History,Handover' }}
+        run: python scripts/ui_preview.py
+      - name: Server log
+        if: always()
+        run: tail -n 80 /tmp/streamlit.log

@@ -46,6 +46,23 @@ When the scenario files change, the app reloads them on start and keeps saved hi
 | History | Saved investigations, What If runs, Blind Test results and handovers, with **JSON export/import** |
 | Handover | Template-based shift handover with Markdown and JSON downloads |
 
+## Reliability Brain (optional, behind a feature flag)
+
+A staged engineering examination that sits beside the platform and reads it through one
+read-only adapter: eight stages (asset context, data integrity, health, causes, risk,
+self-verification, decisions, knowledge) in six divisions. It grades data quality, rates
+sensor trust, adjusts confidence with a visible formula, verifies its own claims against the
+records, and gives prioritised recommendations with evidence. It covers the three P-301
+scenarios plus Brain-only cases: a healthy pump (P-302), a pump with poor data (P-303) and a
+compressor it does not support yet (K-101).
+
+* Turn it on: set `PLANTPROOF_RELIABILITY=1` as an environment variable, or on Streamlit
+  Community Cloud add `PLANTPROOF_RELIABILITY = "1"` under **App settings → Secrets**.
+  Off (the default), the app behaves exactly as before and the Brain is never imported.
+* Run headless: `python -c "from plantproof.reliability import run_examination as r; print(r('P-301/A').final_en)"`
+* Docs: `docs/reliability/ARCHITECTURE.md`, `docs/reliability/SECURITY_AND_LIMITATIONS.md`,
+  `docs/reliability/BASELINE.md`, `docs/DESIGN_SYSTEM.md`.
+
 ## Important: storage is not permanent on Streamlit Community Cloud
 
 History is stored in a local SQLite file (`.runtime/plantproof.db`). On Streamlit Community
@@ -108,6 +125,11 @@ confidence       = support_ratio * coverage_factor * contested_factor
 Thresholds, weights and rules are in `config/hypotheses.json`.
 
 ## Running the tests
+
+`python scripts/coverage_report.py` prints statement coverage with the standard library only.
+The UI preview workflow (`.github/workflows/ui-preview.yml`) runs the app with real Streamlit
+and checks every page in a browser at desktop, tablet and phone widths, flag off and on.
+
 
 ```
 python -m unittest discover -s tests -t .

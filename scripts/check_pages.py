@@ -119,9 +119,11 @@ def main() -> int:
         if frame is None:
             print("::error::App did not load")
             return 1
-        for name in PAGES:
+        shots = os.environ.get("PRINT_SHOTS", "").split(",")
+        extra = ["Reliability Brain"] if "Reliability Brain" in shots else []   # only when the flag is on
+        for name in PAGES + extra:
             try:
-                if name == "Operations Room":      # has its own red button, not a list item
+                if name in ("Operations Room", "Reliability Brain"):      # has its own red button, not a list item
                     frame.locator('[data-testid="stSidebar"] button').filter(has_text=name).first.click()
                 else:
                     frame.locator('[data-testid="stSidebar"] label').filter(has_text=name).first.click()

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,46 +15,61 @@
 <meta name="theme-color" content="#0B0F14">
 <link rel="icon" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0B0F14; --surface:#111820; --raised:#16202A; --line:#22303A;
     --text:#EDF2F1; --text2:#AEBBBA; --muted:#7C8B90;
-    --brand:#4DA383; --brand2:#6BC4A2;
+    --brand:#4DA383; --brand2:#6BC4A2; --crit:#E5483A;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;background:var(--bg);color:var(--text);
     font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     line-height:1.6;-webkit-font-smoothing:antialiased}
+  html[lang="ar"] body{font-family:"IBM Plex Sans Arabic",Inter,system-ui,sans-serif;line-height:1.75}
   a{color:inherit}
   .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
-  .ar{font-family:"Noto Sans Arabic","Geeza Pro",Tahoma,sans-serif;color:var(--muted);font-weight:500}
+
+  /* language switching: each text exists in both languages */
+  html[lang="en"] [lang="ar"]:not(html){display:none}
+  html[lang="ar"] [lang="en"]:not(html){display:none}
+  .ltr{direction:ltr;unicode-bidi:isolate}
 
   /* nav */
   nav{position:sticky;top:0;z-index:10;background:rgba(11,15,20,.82);backdrop-filter:blur(10px);
     -webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
-  .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:19px;letter-spacing:-.2px}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:19px;letter-spacing:-.2px;
+    font-family:Inter,system-ui,sans-serif;direction:ltr}
   .brand svg{width:30px;height:33px}
   .brand b{color:var(--brand)}
-  .links{display:flex;gap:26px;font-size:15px}
+  .links{display:flex;gap:22px;font-size:15px;align-items:center}
   .links a{text-decoration:none;color:var(--text2)}
   .links a:hover{color:var(--text)}
-  @media(max-width:640px){.links a.hide-sm{display:none}.hero .net{opacity:.35}}
+  .lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
+  .lang button{all:unset;cursor:pointer;padding:6px 12px;font-size:13px;font-weight:700;color:var(--text2)}
+  .lang button[aria-pressed="true"]{background:var(--brand);color:#06120D}
+  .lang button:focus-visible{outline:2px solid var(--brand2);outline-offset:-2px}
+  @media(max-width:700px){.links a.hide-sm{display:none}.links{gap:14px}}
 
   /* hero */
   .hero{position:relative;overflow:hidden;padding:110px 0 90px;text-align:center}
-  .hero .net{opacity:.9;position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .hero .net{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.9}
   .hero::before{content:"";position:absolute;left:50%;top:46%;width:900px;height:420px;transform:translate(-50%,-50%);
     background:radial-gradient(closest-side,rgba(77,163,131,.18),rgba(77,163,131,0));pointer-events:none}
+  @media(max-width:700px){.hero .net{opacity:.35}}
   .hero .wrap{position:relative}
   .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:.4px;
     color:var(--brand2);border:1px solid rgba(77,163,131,.35);background:rgba(77,163,131,.08);
-    padding:6px 12px;border-radius:999px;text-transform:uppercase}
-  h1{font-size:clamp(38px,6.4vw,72px);line-height:1.05;letter-spacing:-1.8px;margin:22px auto 18px;max-width:900px;font-weight:800}
+    padding:6px 12px;border-radius:999px}
+  html[lang="en"] .eyebrow{text-transform:uppercase}
+  h1{font-size:clamp(36px,6.2vw,70px);line-height:1.08;letter-spacing:-1.6px;margin:22px auto 18px;max-width:900px;font-weight:800}
+  html[lang="ar"] h1{letter-spacing:0;line-height:1.3}
   h1 em{font-style:normal;color:var(--brand)}
   .lead{font-size:clamp(17px,2vw,20px);color:var(--text2);max-width:720px;margin:0 auto}
-  .lead .ar{display:block;margin-top:8px;font-size:16px}
   .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:10px;font-weight:700;
     font-size:15px;text-decoration:none;border:1px solid transparent;transition:transform .15s,background .15s}
@@ -65,9 +80,27 @@
   .btn.ghost:hover{background:var(--raised)}
 
   section{padding:84px 0;border-top:1px solid var(--line)}
-  .kicker{color:var(--brand);font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase}
-  h2{font-size:clamp(28px,4vw,42px);letter-spacing:-1px;line-height:1.15;margin:10px 0 14px}
+  .kicker{color:var(--brand);font-weight:700;font-size:13px;letter-spacing:1px}
+  html[lang="en"] .kicker{text-transform:uppercase}
+  h2{font-size:clamp(28px,4vw,42px);letter-spacing:-1px;line-height:1.18;margin:10px 0 14px}
+  html[lang="ar"] h2{letter-spacing:0;line-height:1.35}
   .sub{color:var(--text2);max-width:680px;font-size:17px}
+  .center{text-align:center}.center .sub{margin-inline:auto}
+
+  /* how it works */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:38px;position:relative}
+  @media(max-width:820px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;position:relative}
+  .step .num{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:800;background:rgba(77,163,131,.14);color:var(--brand2);border:1px solid rgba(77,163,131,.4);margin-bottom:14px}
+  .step h3{margin:0 0 6px;font-size:19px}
+  .step p{margin:0;color:var(--text2);font-size:15px}
+  .step .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+  .tag{font-size:12px;padding:4px 9px;border-radius:999px;background:var(--raised);color:var(--text2);border:1px solid var(--line)}
+  .step:not(:last-child)::after{content:"";position:absolute;top:43px;inset-inline-end:-12px;width:8px;height:8px;
+    border-top:2px solid var(--brand);border-inline-end:2px solid var(--brand);transform:rotate(45deg)}
+  html[dir="rtl"] .step:not(:last-child)::after{transform:rotate(-45deg)}
+  @media(max-width:820px){.step:not(:last-child)::after{display:none}}
 
   /* product */
   .product{display:grid;grid-template-columns:1fr 1.15fr;gap:48px;align-items:center}
@@ -77,11 +110,24 @@
   .features{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:26px 0 28px}
   @media(max-width:520px){.features{grid-template-columns:1fr}}
   .f{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
-  .f h3{margin:0 0 4px;font-size:16px}
-  .f p{margin:0;color:var(--text2);font-size:14px;line-height:1.5}
-  .f .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--brand);margin-right:8px;
+  .f h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .f p{margin:0;color:var(--text2);font-size:14px;line-height:1.55}
+  .dot{display:inline-block;flex:0 0 9px;width:9px;height:9px;border-radius:50%;background:var(--brand);
     box-shadow:0 0 0 4px rgba(77,163,131,.15)}
   .note{font-size:13px;color:var(--muted)}
+
+  /* gallery */
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+  @media(max-width:900px){.gallery{grid-template-columns:1fr}}
+  .g{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:zoom-in}
+  .g img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;border-bottom:1px solid var(--line)}
+  .g figcaption{padding:14px 16px}
+  .g b{display:block;font-size:15px;margin-bottom:2px}
+  .g span{color:var(--text2);font-size:14px}
+  .lightbox{position:fixed;inset:0;background:rgba(5,8,11,.92);display:none;align-items:center;justify-content:center;
+    z-index:50;padding:20px;cursor:zoom-out}
+  .lightbox.open{display:flex}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:10px;border:1px solid var(--line)}
 
   /* principles */
   .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
@@ -91,22 +137,19 @@
   .card h3{margin:8px 0 6px;font-size:19px}
   .card p{margin:0;color:var(--text2);font-size:15px}
 
-  /* contact */
-  .contact{text-align:center}
-  .contact .sub{margin:0 auto}
   footer{border-top:1px solid var(--line);padding:28px 0;color:var(--muted);font-size:14px}
   footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
   .reveal{opacity:0;transform:translateY(14px);transition:opacity .7s ease,transform .7s ease}
   .reveal.in{opacity:1;transform:none}
-  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
 
 <nav>
   <div class="wrap">
-    <a class="brand" href="#top" aria-label="Yaqen AI home">
+    <a class="brand" href="#top" aria-label="Yaqen AI">
       <svg viewBox="234 151 680 753" aria-hidden="true">
         <g stroke="#fff" stroke-width="56" stroke-linecap="round"><line x1="325" y1="242" x2="575" y2="540"/><line x1="823" y1="242" x2="575" y2="540"/><line x1="575" y1="540" x2="575" y2="813"/></g>
         <g fill="#fff"><circle cx="325" cy="242" r="91"/><circle cx="823" cy="242" r="91"/><circle cx="575" cy="813" r="91"/></g>
@@ -115,71 +158,133 @@
       <span>Yaqen <b>AI</b></span>
     </a>
     <div class="links">
+      <a class="hide-sm" href="#how"><span lang="en">How it works</span><span lang="ar">كيف تعمل</span></a>
       <a href="#plantproof">PlantProof AI</a>
-      <a class="hide-sm" href="#principles">Principles</a>
-      <a href="#contact">Contact</a>
+      <a class="hide-sm" href="#contact"><span lang="en">Contact</span><span lang="ar">تواصل</span></a>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-set="en" aria-pressed="true">EN</button>
+        <button type="button" data-set="ar" aria-pressed="false">عربي</button>
+      </div>
     </div>
   </div>
 </nav>
 
 <header class="hero" id="top">
   <svg class="net" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <g stroke="#2E5F50" stroke-width="1.6" stroke-opacity=".7"><line x1="40" y1="110" x2="150" y2="240"/><line x1="150" y1="240" x2="270" y2="100"/><line x1="270" y1="100" x2="300" y2="330"/><line x1="300" y1="330" x2="190" y2="480"/><line x1="190" y1="480" x2="60" y2="420"/><line x1="60" y1="420" x2="150" y2="240"/><line x1="150" y1="240" x2="300" y2="330"/><line x1="1400" y1="120" x2="1290" y2="250"/><line x1="1290" y1="250" x2="1170" y2="110"/><line x1="1170" y1="110" x2="1140" y2="340"/><line x1="1140" y1="340" x2="1250" y2="490"/><line x1="1250" y1="490" x2="1380" y2="430"/><line x1="1380" y1="430" x2="1290" y2="250"/><line x1="1290" y1="250" x2="1140" y2="340"/></g>
-    <g fill="#6E7A80"><circle cx="40" cy="110" r="5"/><circle cx="270" cy="100" r="5"/><circle cx="190" cy="480" r="5"/><circle cx="60" cy="420" r="5"/><circle cx="1400" cy="120" r="5"/><circle cx="1170" cy="110" r="5"/><circle cx="1250" cy="490" r="5"/><circle cx="1380" cy="430" r="5"/></g>
+    <g stroke="#2E5F50" stroke-width="1.6" stroke-opacity=".7">
+      <line x1="40" y1="110" x2="150" y2="240"/><line x1="150" y1="240" x2="270" y2="100"/><line x1="270" y1="100" x2="300" y2="330"/>
+      <line x1="300" y1="330" x2="190" y2="480"/><line x1="190" y1="480" x2="60" y2="420"/><line x1="60" y1="420" x2="150" y2="240"/><line x1="150" y1="240" x2="300" y2="330"/>
+      <line x1="1400" y1="120" x2="1290" y2="250"/><line x1="1290" y1="250" x2="1170" y2="110"/><line x1="1170" y1="110" x2="1140" y2="340"/>
+      <line x1="1140" y1="340" x2="1250" y2="490"/><line x1="1250" y1="490" x2="1380" y2="430"/><line x1="1380" y1="430" x2="1290" y2="250"/><line x1="1290" y1="250" x2="1140" y2="340"/>
+    </g>
+    <g fill="#6E7A80"><circle cx="40" cy="110" r="5"/><circle cx="270" cy="100" r="5"/><circle cx="190" cy="480" r="5"/><circle cx="60" cy="420" r="5"/>
+      <circle cx="1400" cy="120" r="5"/><circle cx="1170" cy="110" r="5"/><circle cx="1250" cy="490" r="5"/><circle cx="1380" cy="430" r="5"/></g>
     <g fill="#4DA383"><circle cx="150" cy="240" r="9"/><circle cx="300" cy="330" r="9"/><circle cx="1290" cy="250" r="9"/><circle cx="1140" cy="340" r="9"/></g>
   </svg>
   <div class="wrap">
-    <span class="eyebrow">Yaqen (يقين) means certainty</span>
-    <h1>Practical AI you can be <em>certain</em> about.</h1>
-    <p class="lead">We build explainable, evidence-based AI for industry. Every answer is traceable to the data behind it, and when the data is not enough, our AI says so.
-      <span class="ar" dir="rtl">ذكاء اصطناعي عملي تقدر تثق فيه: كل نتيجة مربوطة بدليل.</span></p>
+    <span class="eyebrow"><span lang="en">Yaqen (يقين) means certainty</span><span lang="ar">يقين: الثقة الكاملة</span></span>
+    <h1>
+      <span lang="en">Practical AI you can be <em>certain</em> about.</span>
+      <span lang="ar">ذكاء اصطناعي عملي تثق <em>بنتائجه</em>.</span>
+    </h1>
+    <p class="lead">
+      <span lang="en">We build explainable, evidence-based AI for industry. Every answer is traceable to the data behind it, and when the data is not enough, our AI says so.</span>
+      <span lang="ar">نبني ذكاءً اصطناعيًا للقطاع الصناعي قائمًا على الأدلة وقابلًا للتفسير. كل نتيجة مرتبطة بالبيانات التي بُنيت عليها، وعندما لا تكفي البيانات، يقول ذلك بوضوح.</span>
+    </p>
     <div class="cta">
-      <a class="btn primary" href="#plantproof">Meet PlantProof AI →</a>
-      <a class="btn ghost" href="#contact">Contact us</a>
+      <a class="btn primary" href="#plantproof"><span lang="en">Meet PlantProof AI →</span><span lang="ar">تعرّف على PlantProof AI ←</span></a>
+      <a class="btn ghost" href="#contact"><span lang="en">Contact us</span><span lang="ar">تواصل معنا</span></a>
     </div>
   </div>
 </header>
 
-<section id="plantproof">
-  <div class="wrap product">
-    <div class="reveal">
-      <div class="kicker">Our first product</div>
-      <h2>PlantProof AI</h2>
-      <p class="sub">Industrial equipment failure investigation and reliability intelligence. When a pump trips, PlantProof AI finds the most likely cause, shows the evidence for it, and tells engineers what to check before restart.</p>
-      <div class="features">
-        <div class="f"><h3><span class="dot"></span>Evidence-based investigation</h3><p>Every conclusion links to the records behind it.</p></div>
-        <div class="f"><h3><span class="dot"></span>Early warning</h3><p>Flags unusual behaviour hours before an alarm.</p></div>
-        <div class="f"><h3><span class="dot"></span>Reliability Brain</h3><p>An 8-stage examination that grades data quality and checks the sensors themselves.</p></div>
-        <div class="f"><h3><span class="dot"></span>Live alarm</h3><p>A phone becomes a vibration sensor; the Operations Room opens in seconds.</p></div>
-      </div>
-      <a class="btn primary" href="mailto:info@yaqenai.com?subject=PlantProof%20AI%20demo">Request a demo</a>
-      <p class="note">The current version is a working demo built on synthetic plant data.</p>
+<section id="how">
+  <div class="wrap">
+    <div class="center reveal">
+      <div class="kicker"><span lang="en">How it works</span><span lang="ar">كيف تعمل</span></div>
+      <h2><span lang="en">From raw data to a decision you can defend</span><span lang="ar">من البيانات الخام إلى قرار تستطيع إثباته</span></h2>
+      <p class="sub"><span lang="en">Three steps, every one of them visible to the engineer.</span><span lang="ar">ثلاث خطوات، وكل خطوة واضحة أمام المهندس.</span></p>
     </div>
-    <div class="shot reveal"><img src="plantproof.jpg" alt="PlantProof AI shown on a monitor: the platform overview for cooling water pump P-301" loading="lazy"></div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num">1</div>
+        <h3><span lang="en">Data comes in</span><span lang="ar">جمع البيانات</span></h3>
+        <p><span lang="en">Sensor readings, lab results, inspections and operator logs are gathered in one place.</span><span lang="ar">قراءات الحساسات ونتائج المختبر والفحوصات وسجلات المشغّلين في مكان واحد.</span></p>
+        <div class="tags"><span class="tag"><span lang="en">Sensors</span><span lang="ar">حساسات</span></span><span class="tag"><span lang="en">Lab</span><span lang="ar">مختبر</span></span><span class="tag"><span lang="en">Logs</span><span lang="ar">سجلات</span></span></div>
+      </div>
+      <div class="step reveal">
+        <div class="num">2</div>
+        <h3><span lang="en">AI analyses and verifies</span><span lang="ar">التحليل والتحقق</span></h3>
+        <p><span lang="en">The AI ranks likely causes, checks data quality and sensor trust, and flags contradictions and missing checks.</span><span lang="ar">يرتّب الذكاء الاصطناعي الأسباب المحتملة، ويقيّم جودة البيانات وموثوقية الحساسات، ويكشف التناقضات والفحوصات الناقصة.</span></p>
+        <div class="tags"><span class="tag"><span lang="en">Causes</span><span lang="ar">الأسباب</span></span><span class="tag"><span lang="en">Data quality</span><span lang="ar">جودة البيانات</span></span><span class="tag"><span lang="en">Self-check</span><span lang="ar">تحقق ذاتي</span></span></div>
+      </div>
+      <div class="step reveal">
+        <div class="num">3</div>
+        <h3><span lang="en">The engineer decides</span><span lang="ar">المهندس يقرر</span></h3>
+        <p><span lang="en">A clear next action, the evidence behind it, and what must be done before restart. People stay in charge.</span><span lang="ar">الإجراء التالي بوضوح، والدليل عليه، وما يجب عمله قبل إعادة التشغيل. والقرار يبقى للإنسان.</span></p>
+        <div class="tags"><span class="tag"><span lang="en">Next action</span><span lang="ar">الإجراء التالي</span></span><span class="tag"><span lang="en">Evidence</span><span lang="ar">الدليل</span></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="plantproof">
+  <div class="wrap">
+    <div class="product">
+      <div class="reveal">
+        <div class="kicker"><span lang="en">Our first product</span><span lang="ar">منتجنا الأول</span></div>
+        <h2>PlantProof AI</h2>
+        <p class="sub"><span lang="en">Industrial equipment failure investigation and reliability intelligence. When a pump trips, PlantProof AI finds the most likely cause, shows the evidence for it, and tells engineers what to check before restart.</span><span lang="ar">منصة للتحقيق في أعطال المعدات الصناعية وذكاء الموثوقية. عندما تتوقف مضخة، تحدد PlantProof AI السبب الأرجح، وتعرض الدليل عليه، وتوضح للمهندسين ما يجب فحصه قبل إعادة التشغيل.</span></p>
+        <div class="features">
+          <div class="f"><h3><span class="dot"></span><span lang="en">Evidence-based investigation</span><span lang="ar">تحقيق قائم على الأدلة</span></h3><p><span lang="en">Every conclusion links to the records behind it.</span><span lang="ar">كل استنتاج مرتبط بالسجلات التي يستند إليها.</span></p></div>
+          <div class="f"><h3><span class="dot"></span><span lang="en">Early warning</span><span lang="ar">إنذار مبكر</span></h3><p><span lang="en">Flags unusual behaviour hours before an alarm.</span><span lang="ar">يرصد السلوك غير الطبيعي قبل الإنذار بساعات.</span></p></div>
+          <div class="f"><h3><span class="dot"></span><span lang="en">Reliability Brain</span><span lang="ar">عقل الموثوقية</span></h3><p><span lang="en">An 8-stage examination that grades data quality and checks the sensors themselves.</span><span lang="ar">فحص من ثماني مراحل يقيّم جودة البيانات ويتحقق من الحساسات نفسها.</span></p></div>
+          <div class="f"><h3><span class="dot"></span><span lang="en">Live alarm</span><span lang="ar">إنذار مباشر</span></h3><p><span lang="en">A phone becomes a vibration sensor; the Operations Room opens in seconds.</span><span lang="ar">الجوال يصبح حساس اهتزاز، وتُفتح غرفة العمليات خلال ثوانٍ.</span></p></div>
+        </div>
+        <a class="btn primary" href="mailto:info@yaqenai.com?subject=PlantProof%20AI%20demo"><span lang="en">Request a demo</span><span lang="ar">اطلب عرضًا تجريبيًا</span></a>
+        <p class="note"><span lang="en">The current version is a working demo built on synthetic plant data.</span><span lang="ar">النسخة الحالية نموذج تجريبي يعمل على بيانات مصنع افتراضية.</span></p>
+      </div>
+      <div class="shot reveal"><img src="plantproof.jpg" alt="PlantProof AI on a monitor" loading="lazy"></div>
+    </div>
+
+    <div class="gallery">
+      <figure class="g reveal" data-full="shot-ops.jpg">
+        <img src="shot-ops.jpg" alt="Operations Room screen" loading="lazy">
+        <figcaption><b><span lang="en">Operations Room</span><span lang="ar">غرفة العمليات</span></b><span><span lang="en">Likely cause, next action and what blocks a restart, on one screen.</span><span lang="ar">السبب الأرجح والإجراء التالي وما يمنع إعادة التشغيل في شاشة واحدة.</span></span></figcaption>
+      </figure>
+      <figure class="g reveal" data-full="shot-alarm.jpg">
+        <img src="shot-alarm.jpg" alt="Live alarm notification" loading="lazy">
+        <figcaption><b><span lang="en">Live alarm</span><span lang="ar">الإنذار المباشر</span></b><span><span lang="en">Abnormal vibration triggers a red alert that opens the Operations Room.</span><span lang="ar">الاهتزاز غير الطبيعي يطلق تنبيهًا أحمر يفتح غرفة العمليات.</span></span></figcaption>
+      </figure>
+      <figure class="g reveal" data-full="shot-brain.jpg">
+        <img src="shot-brain.jpg" alt="Reliability Brain examination" loading="lazy">
+        <figcaption><b><span lang="en">Reliability Brain</span><span lang="ar">عقل الموثوقية</span></b><span><span lang="en">Eight stages, from data integrity to self-verification.</span><span lang="ar">ثماني مراحل، من سلامة البيانات إلى التحقق الذاتي.</span></span></figcaption>
+      </figure>
+    </div>
   </div>
 </section>
 
 <section id="principles">
   <div class="wrap">
     <div class="reveal">
-      <div class="kicker">How we build</div>
-      <h2>Three principles behind every product</h2>
+      <div class="kicker"><span lang="en">How we build</span><span lang="ar">مبادئنا</span></div>
+      <h2><span lang="en">Three principles behind every product</span><span lang="ar">ثلاثة مبادئ في كل منتج</span></h2>
     </div>
     <div class="cards">
-      <div class="card reveal"><div class="n">01</div><h3>Evidence, not guesses</h3><p>Our AI shows where each claim comes from, so anyone can check it.</p></div>
-      <div class="card reveal"><div class="n">02</div><h3>Honest about limits</h3><p>Poor or missing data is reported as such. "I don't know" is a valid answer.</p></div>
-      <div class="card reveal"><div class="n">03</div><h3>People decide</h3><p>We support qualified experts. Decisions stay with the people responsible for them.</p></div>
+      <div class="card reveal"><div class="n">01</div><h3><span lang="en">Evidence, not guesses</span><span lang="ar">الدليل لا التخمين</span></h3><p><span lang="en">Our AI shows where each claim comes from, so anyone can check it.</span><span lang="ar">يوضح الذكاء الاصطناعي مصدر كل معلومة، ليتمكن أي شخص من التحقق منها.</span></p></div>
+      <div class="card reveal"><div class="n">02</div><h3><span lang="en">Honest about limits</span><span lang="ar">الصراحة في الحدود</span></h3><p><span lang="en">Poor or missing data is reported as such. "I don't know" is a valid answer.</span><span lang="ar">البيانات الضعيفة أو الناقصة نُعلنها كما هي، و«لا أعرف» إجابة مقبولة.</span></p></div>
+      <div class="card reveal"><div class="n">03</div><h3><span lang="en">People decide</span><span lang="ar">القرار للإنسان</span></h3><p><span lang="en">We support qualified experts. Decisions stay with the people responsible for them.</span><span lang="ar">ندعم الخبراء المؤهلين، ويبقى القرار بيد المسؤولين عنه.</span></p></div>
     </div>
   </div>
 </section>
 
-<section id="contact" class="contact">
+<section id="contact" class="center">
   <div class="wrap reveal">
-    <div class="kicker">Get in touch</div>
-    <h2>Let's talk about your operations</h2>
-    <p class="sub">Interested in PlantProof AI, or in practical AI for your business? Send us a message.</p>
+    <div class="kicker"><span lang="en">Get in touch</span><span lang="ar">تواصل معنا</span></div>
+    <h2><span lang="en">Let's talk about your operations</span><span lang="ar">لنتحدث عن عملياتك</span></h2>
+    <p class="sub"><span lang="en">Interested in PlantProof AI, or in practical AI for your business? Send us a message.</span><span lang="ar">مهتم بـ PlantProof AI أو بحلول ذكاء اصطناعي عملية لأعمالك؟ راسلنا.</span></p>
     <div class="cta">
-      <a class="btn primary" href="mailto:info@yaqenai.com">info@yaqenai.com</a>
+      <a class="btn primary ltr" href="mailto:info@yaqenai.com">info@yaqenai.com</a>
       <a class="btn ghost" href="https://www.linkedin.com/company/146908832/" target="_blank" rel="noopener">LinkedIn</a>
     </div>
   </div>
@@ -188,12 +293,32 @@
 <footer>
   <div class="wrap">
     <span>© 2026 Yaqen AI · يقين</span>
-    <span>Practical AI you can be certain about</span>
+    <span><span lang="en">Practical AI you can be certain about</span><span lang="ar">ذكاء اصطناعي عملي تثق بنتائجه</span></span>
   </div>
 </footer>
 
+<div class="lightbox" id="lb" role="dialog" aria-modal="true" aria-label="Screenshot"><img alt=""></div>
+
 <script>
   (function(){
+    var root=document.documentElement, KEY='yaqen-lang';
+    function setLang(l){
+      root.lang=l; root.dir=(l==='ar')?'rtl':'ltr';
+      document.querySelectorAll('.lang button').forEach(function(b){b.setAttribute('aria-pressed', String(b.dataset.set===l));});
+      document.title = l==='ar' ? 'يقين للذكاء الاصطناعي — ذكاء اصطناعي تثق بنتائجه' : 'Yaqen AI — Practical AI you can be certain about';
+      try{localStorage.setItem(KEY,l);}catch(e){}
+    }
+    var saved=null; try{saved=localStorage.getItem(KEY);}catch(e){}
+    var q=(location.search.match(/[?&]lang=(en|ar)/)||[])[1];
+    var first=q||saved||((navigator.language||'').toLowerCase().indexOf('ar')===0?'ar':'en');
+    setLang(first);
+    document.querySelectorAll('.lang button').forEach(function(b){b.addEventListener('click',function(){setLang(b.dataset.set);});});
+
+    var lb=document.getElementById('lb'), lbImg=lb.querySelector('img');
+    document.querySelectorAll('.g').forEach(function(g){g.addEventListener('click',function(){lbImg.src=g.dataset.full;lbImg.alt=g.querySelector('img').alt;lb.classList.add('open');});});
+    lb.addEventListener('click',function(){lb.classList.remove('open');});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')lb.classList.remove('open');});
+
     var els=document.querySelectorAll('.reveal');
     if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in')});return;}
     var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12});

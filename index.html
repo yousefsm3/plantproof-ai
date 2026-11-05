@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yaqen AI — Practical AI you can be certain about</title>
+<meta name="description" content="Yaqen AI builds explainable, evidence-based AI for industry. Our first product, PlantProof AI, investigates industrial equipment failures with evidence, not guesses.">
+<meta property="og:title" content="Yaqen AI — Practical AI you can be certain about">
+<meta property="og:description" content="Explainable, evidence-based AI for industry. Introducing PlantProof AI.">
+<meta property="og:image" content="https://yaqenai.com/plantproof.jpg">
+<meta property="og:url" content="https://yaqenai.com/">
+<meta name="theme-color" content="#0B0F14">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{
+    --bg:#0B0F14; --surface:#111820; --raised:#16202A; --line:#22303A;
+    --text:#EDF2F1; --text2:#AEBBBA; --muted:#7C8B90;
+    --brand:#4DA383; --brand2:#6BC4A2;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+  .ar{font-family:"Noto Sans Arabic","Geeza Pro",Tahoma,sans-serif;color:var(--muted);font-weight:500}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:10;background:rgba(11,15,20,.82);backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:19px;letter-spacing:-.2px}
+  .brand svg{width:30px;height:33px}
+  .brand b{color:var(--brand)}
+  .links{display:flex;gap:26px;font-size:15px}
+  .links a{text-decoration:none;color:var(--text2)}
+  .links a:hover{color:var(--text)}
+  @media(max-width:640px){.links a.hide-sm{display:none}.hero .net{opacity:.35}}
+
+  /* hero */
+  .hero{position:relative;overflow:hidden;padding:110px 0 90px;text-align:center}
+  .hero .net{opacity:.9;position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .hero::before{content:"";position:absolute;left:50%;top:46%;width:900px;height:420px;transform:translate(-50%,-50%);
+    background:radial-gradient(closest-side,rgba(77,163,131,.18),rgba(77,163,131,0));pointer-events:none}
+  .hero .wrap{position:relative}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:.4px;
+    color:var(--brand2);border:1px solid rgba(77,163,131,.35);background:rgba(77,163,131,.08);
+    padding:6px 12px;border-radius:999px;text-transform:uppercase}
+  h1{font-size:clamp(38px,6.4vw,72px);line-height:1.05;letter-spacing:-1.8px;margin:22px auto 18px;max-width:900px;font-weight:800}
+  h1 em{font-style:normal;color:var(--brand)}
+  .lead{font-size:clamp(17px,2vw,20px);color:var(--text2);max-width:720px;margin:0 auto}
+  .lead .ar{display:block;margin-top:8px;font-size:16px}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:10px;font-weight:700;
+    font-size:15px;text-decoration:none;border:1px solid transparent;transition:transform .15s,background .15s}
+  .btn:hover{transform:translateY(-1px)}
+  .btn.primary{background:var(--brand);color:#06120D}
+  .btn.primary:hover{background:var(--brand2)}
+  .btn.ghost{border-color:var(--line);color:var(--text);background:var(--surface)}
+  .btn.ghost:hover{background:var(--raised)}
+
+  section{padding:84px 0;border-top:1px solid var(--line)}
+  .kicker{color:var(--brand);font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase}
+  h2{font-size:clamp(28px,4vw,42px);letter-spacing:-1px;line-height:1.15;margin:10px 0 14px}
+  .sub{color:var(--text2);max-width:680px;font-size:17px}
+
+  /* product */
+  .product{display:grid;grid-template-columns:1fr 1.15fr;gap:48px;align-items:center}
+  @media(max-width:900px){.product{grid-template-columns:1fr}}
+  .shot{border-radius:14px;overflow:hidden;border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .shot img{display:block;width:100%;height:auto}
+  .features{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:26px 0 28px}
+  @media(max-width:520px){.features{grid-template-columns:1fr}}
+  .f{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .f h3{margin:0 0 4px;font-size:16px}
+  .f p{margin:0;color:var(--text2);font-size:14px;line-height:1.5}
+  .f .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--brand);margin-right:8px;
+    box-shadow:0 0 0 4px rgba(77,163,131,.15)}
+  .note{font-size:13px;color:var(--muted)}
+
+  /* principles */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
+  @media(max-width:820px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px}
+  .card .n{font-size:13px;font-weight:800;color:var(--brand);letter-spacing:1px}
+  .card h3{margin:8px 0 6px;font-size:19px}
+  .card p{margin:0;color:var(--text2);font-size:15px}
+
+  /* contact */
+  .contact{text-align:center}
+  .contact .sub{margin:0 auto}
+  footer{border-top:1px solid var(--line);padding:28px 0;color:var(--muted);font-size:14px}
+  footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Yaqen AI home">
+      <svg viewBox="234 151 680 753" aria-hidden="true">
+        <g stroke="#fff" stroke-width="56" stroke-linecap="round"><line x1="325" y1="242" x2="575" y2="540"/><line x1="823" y1="242" x2="575" y2="540"/><line x1="575" y1="540" x2="575" y2="813"/></g>
+        <g fill="#fff"><circle cx="325" cy="242" r="91"/><circle cx="823" cy="242" r="91"/><circle cx="575" cy="813" r="91"/></g>
+        <circle cx="575" cy="540" r="115" fill="#4DA383"/>
+      </svg>
+      <span>Yaqen <b>AI</b></span>
+    </a>
+    <div class="links">
+      <a href="#plantproof">PlantProof AI</a>
+      <a class="hide-sm" href="#principles">Principles</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <svg class="net" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <g stroke="#2E5F50" stroke-width="1.6" stroke-opacity=".7"><line x1="40" y1="110" x2="150" y2="240"/><line x1="150" y1="240" x2="270" y2="100"/><line x1="270" y1="100" x2="300" y2="330"/><line x1="300" y1="330" x2="190" y2="480"/><line x1="190" y1="480" x2="60" y2="420"/><line x1="60" y1="420" x2="150" y2="240"/><line x1="150" y1="240" x2="300" y2="330"/><line x1="1400" y1="120" x2="1290" y2="250"/><line x1="1290" y1="250" x2="1170" y2="110"/><line x1="1170" y1="110" x2="1140" y2="340"/><line x1="1140" y1="340" x2="1250" y2="490"/><line x1="1250" y1="490" x2="1380" y2="430"/><line x1="1380" y1="430" x2="1290" y2="250"/><line x1="1290" y1="250" x2="1140" y2="340"/></g>
+    <g fill="#6E7A80"><circle cx="40" cy="110" r="5"/><circle cx="270" cy="100" r="5"/><circle cx="190" cy="480" r="5"/><circle cx="60" cy="420" r="5"/><circle cx="1400" cy="120" r="5"/><circle cx="1170" cy="110" r="5"/><circle cx="1250" cy="490" r="5"/><circle cx="1380" cy="430" r="5"/></g>
+    <g fill="#4DA383"><circle cx="150" cy="240" r="9"/><circle cx="300" cy="330" r="9"/><circle cx="1290" cy="250" r="9"/><circle cx="1140" cy="340" r="9"/></g>
+  </svg>
+  <div class="wrap">
+    <span class="eyebrow">Yaqen (يقين) means certainty</span>
+    <h1>Practical AI you can be <em>certain</em> about.</h1>
+    <p class="lead">We build explainable, evidence-based AI for industry. Every answer is traceable to the data behind it, and when the data is not enough, our AI says so.
+      <span class="ar" dir="rtl">ذكاء اصطناعي عملي تقدر تثق فيه: كل نتيجة مربوطة بدليل.</span></p>
+    <div class="cta">
+      <a class="btn primary" href="#plantproof">Meet PlantProof AI →</a>
+      <a class="btn ghost" href="#contact">Contact us</a>
+    </div>
+  </div>
+</header>
+
+<section id="plantproof">
+  <div class="wrap product">
+    <div class="reveal">
+      <div class="kicker">Our first product</div>
+      <h2>PlantProof AI</h2>
+      <p class="sub">Industrial equipment failure investigation and reliability intelligence. When a pump trips, PlantProof AI finds the most likely cause, shows the evidence for it, and tells engineers what to check before restart.</p>
+      <div class="features">
+        <div class="f"><h3><span class="dot"></span>Evidence-based investigation</h3><p>Every conclusion links to the records behind it.</p></div>
+        <div class="f"><h3><span class="dot"></span>Early warning</h3><p>Flags unusual behaviour hours before an alarm.</p></div>
+        <div class="f"><h3><span class="dot"></span>Reliability Brain</h3><p>An 8-stage examination that grades data quality and checks the sensors themselves.</p></div>
+        <div class="f"><h3><span class="dot"></span>Live alarm</h3><p>A phone becomes a vibration sensor; the Operations Room opens in seconds.</p></div>
+      </div>
+      <a class="btn primary" href="mailto:hello@yaqenai.com?subject=PlantProof%20AI%20demo">Request a demo</a>
+      <p class="note">The current version is a working demo built on synthetic plant data.</p>
+    </div>
+    <div class="shot reveal"><img src="plantproof.jpg" alt="PlantProof AI shown on a monitor: the platform overview for cooling water pump P-301" loading="lazy"></div>
+  </div>
+</section>
+
+<section id="principles">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="kicker">How we build</div>
+      <h2>Three principles behind every product</h2>
+    </div>
+    <div class="cards">
+      <div class="card reveal"><div class="n">01</div><h3>Evidence, not guesses</h3><p>Our AI shows where each claim comes from, so anyone can check it.</p></div>
+      <div class="card reveal"><div class="n">02</div><h3>Honest about limits</h3><p>Poor or missing data is reported as such. "I don't know" is a valid answer.</p></div>
+      <div class="card reveal"><div class="n">03</div><h3>People decide</h3><p>We support qualified experts. Decisions stay with the people responsible for them.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="contact" class="contact">
+  <div class="wrap reveal">
+    <div class="kicker">Get in touch</div>
+    <h2>Let's talk about your operations</h2>
+    <p class="sub">Interested in PlantProof AI, or in practical AI for your business? Send us a message.</p>
+    <div class="cta">
+      <a class="btn primary" href="mailto:hello@yaqenai.com">hello@yaqenai.com</a>
+      <a class="btn ghost" href="https://www.linkedin.com/company/146908832/" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Yaqen AI · يقين</span>
+    <span>Practical AI you can be certain about</span>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var els=document.querySelectorAll('.reveal');
+    if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in')});return;}
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12});
+    els.forEach(function(e){io.observe(e)});
+  })();
+</script>
+</body>
+</html>

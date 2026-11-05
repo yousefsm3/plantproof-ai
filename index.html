@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@600;700;800&family=Readex+Pro:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0B0F14; --surface:#111820; --raised:#16202A; --line:#22303A;
@@ -29,7 +29,8 @@
   body{margin:0;background:var(--bg);color:var(--text);
     font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     line-height:1.6;-webkit-font-smoothing:antialiased}
-  html[lang="ar"] body{font-family:"IBM Plex Sans Arabic",Inter,system-ui,sans-serif;line-height:1.75}
+  html[lang="ar"] body{font-family:"Readex Pro",Inter,system-ui,sans-serif;line-height:1.75}
+  html[lang="ar"] h1,html[lang="ar"] h2,html[lang="ar"] h3,html[lang="ar"] .kicker,html[lang="ar"] .btn,html[lang="ar"] .eyebrow{font-family:"Noto Kufi Arabic","Readex Pro",sans-serif}
   a{color:inherit}
   .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
 
@@ -116,16 +117,19 @@
     box-shadow:0 0 0 4px rgba(77,163,131,.15)}
   .note{font-size:13px;color:var(--muted)}
 
-  /* gallery */
-  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
-  @media(max-width:900px){.gallery{grid-template-columns:1fr}}
-  .g{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:zoom-in}
-  .g img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;border-bottom:1px solid var(--line)}
-  .g figcaption{padding:14px 16px}
-  .g b{display:block;font-size:15px;margin-bottom:2px}
-  .g span{color:var(--text2);font-size:14px}
-  .lightbox{position:fixed;inset:0;background:rgba(5,8,11,.92);display:none;align-items:center;justify-content:center;
-    z-index:50;padding:20px;cursor:zoom-out}
+  /* screens viewer */
+  .viewer{margin-top:44px}
+  .vtabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:18px}
+  .vtabs button{all:unset;cursor:pointer;padding:10px 16px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);color:var(--text2);font-weight:600;font-size:14px}
+  .vtabs button[aria-selected="true"]{background:var(--brand);color:#06120D;border-color:var(--brand)}
+  .vtabs button:focus-visible{outline:2px solid var(--brand2);outline-offset:2px}
+  .screen{margin:0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#0E1315;
+    box-shadow:0 30px 80px rgba(0,0,0,.5);cursor:zoom-in}
+  .screen img{display:block;width:100%;height:auto}
+  .vcap{text-align:center;color:var(--text2);margin-top:14px;font-size:15px}
+  .lightbox{position:fixed;inset:0;background:rgba(5,8,11,.94);display:none;align-items:center;justify-content:center;
+    z-index:50;padding:16px;cursor:zoom-out}
   .lightbox.open{display:flex}
   .lightbox img{max-width:100%;max-height:100%;border-radius:10px;border:1px solid var(--line)}
 
@@ -185,11 +189,11 @@
     <span class="eyebrow"><span lang="en">Yaqen (يقين) means certainty</span><span lang="ar">يقين: الثقة الكاملة</span></span>
     <h1>
       <span lang="en">Practical AI you can be <em>certain</em> about.</span>
-      <span lang="ar">ذكاء اصطناعي عملي تثق <em>بنتائجه</em>.</span>
+      <span lang="ar">قرارات صناعية <em>مبنية على الدليل</em>.</span>
     </h1>
     <p class="lead">
       <span lang="en">We build explainable, evidence-based AI for industry. Every answer is traceable to the data behind it, and when the data is not enough, our AI says so.</span>
-      <span lang="ar">نبني ذكاءً اصطناعيًا للقطاع الصناعي قائمًا على الأدلة وقابلًا للتفسير. كل نتيجة مرتبطة بالبيانات التي بُنيت عليها، وعندما لا تكفي البيانات، يقول ذلك بوضوح.</span>
+      <span lang="ar">نبني حلولًا ذكية للقطاع الصناعي، قائمة على الأدلة وقابلة للتفسير. كل نتيجة مرتبطة بالمعطيات التي بُنيت عليها، وعندما لا تكفي المعطيات نقول ذلك بوضوح.</span>
     </p>
     <div class="cta">
       <a class="btn primary" href="#plantproof"><span lang="en">Meet PlantProof AI →</span><span lang="ar">تعرّف على PlantProof AI ←</span></a>
@@ -202,21 +206,21 @@
   <div class="wrap">
     <div class="center reveal">
       <div class="kicker"><span lang="en">How it works</span><span lang="ar">كيف تعمل</span></div>
-      <h2><span lang="en">From raw data to a decision you can defend</span><span lang="ar">من البيانات الخام إلى قرار تستطيع إثباته</span></h2>
+      <h2><span lang="en">From raw data to a decision you can defend</span><span lang="ar">من المعطيات إلى قرار تستطيع إثباته</span></h2>
       <p class="sub"><span lang="en">Three steps, every one of them visible to the engineer.</span><span lang="ar">ثلاث خطوات، وكل خطوة واضحة أمام المهندس.</span></p>
     </div>
     <div class="steps">
       <div class="step reveal">
         <div class="num">1</div>
-        <h3><span lang="en">Data comes in</span><span lang="ar">جمع البيانات</span></h3>
+        <h3><span lang="en">Data comes in</span><span lang="ar">جمع المعطيات</span></h3>
         <p><span lang="en">Sensor readings, lab results, inspections and operator logs are gathered in one place.</span><span lang="ar">قراءات الحساسات ونتائج المختبر والفحوصات وسجلات المشغّلين في مكان واحد.</span></p>
         <div class="tags"><span class="tag"><span lang="en">Sensors</span><span lang="ar">حساسات</span></span><span class="tag"><span lang="en">Lab</span><span lang="ar">مختبر</span></span><span class="tag"><span lang="en">Logs</span><span lang="ar">سجلات</span></span></div>
       </div>
       <div class="step reveal">
         <div class="num">2</div>
         <h3><span lang="en">AI analyses and verifies</span><span lang="ar">التحليل والتحقق</span></h3>
-        <p><span lang="en">The AI ranks likely causes, checks data quality and sensor trust, and flags contradictions and missing checks.</span><span lang="ar">يرتّب الذكاء الاصطناعي الأسباب المحتملة، ويقيّم جودة البيانات وموثوقية الحساسات، ويكشف التناقضات والفحوصات الناقصة.</span></p>
-        <div class="tags"><span class="tag"><span lang="en">Causes</span><span lang="ar">الأسباب</span></span><span class="tag"><span lang="en">Data quality</span><span lang="ar">جودة البيانات</span></span><span class="tag"><span lang="en">Self-check</span><span lang="ar">تحقق ذاتي</span></span></div>
+        <p><span lang="en">The AI ranks likely causes, checks data quality and sensor trust, and flags contradictions and missing checks.</span><span lang="ar">ترتّب المنصة الأسباب المحتملة، وتقيّم جودة المعطيات وموثوقية الحساسات، وتكشف التناقضات والفحوصات الناقصة.</span></p>
+        <div class="tags"><span class="tag"><span lang="en">Causes</span><span lang="ar">الأسباب</span></span><span class="tag"><span lang="en">Data quality</span><span lang="ar">جودة المعطيات</span></span><span class="tag"><span lang="en">Self-check</span><span lang="ar">تحقق ذاتي</span></span></div>
       </div>
       <div class="step reveal">
         <div class="num">3</div>
@@ -238,28 +242,27 @@
         <div class="features">
           <div class="f"><h3><span class="dot"></span><span lang="en">Evidence-based investigation</span><span lang="ar">تحقيق قائم على الأدلة</span></h3><p><span lang="en">Every conclusion links to the records behind it.</span><span lang="ar">كل استنتاج مرتبط بالسجلات التي يستند إليها.</span></p></div>
           <div class="f"><h3><span class="dot"></span><span lang="en">Early warning</span><span lang="ar">إنذار مبكر</span></h3><p><span lang="en">Flags unusual behaviour hours before an alarm.</span><span lang="ar">يرصد السلوك غير الطبيعي قبل الإنذار بساعات.</span></p></div>
-          <div class="f"><h3><span class="dot"></span><span lang="en">Reliability Brain</span><span lang="ar">عقل الموثوقية</span></h3><p><span lang="en">An 8-stage examination that grades data quality and checks the sensors themselves.</span><span lang="ar">فحص من ثماني مراحل يقيّم جودة البيانات ويتحقق من الحساسات نفسها.</span></p></div>
-          <div class="f"><h3><span class="dot"></span><span lang="en">Live alarm</span><span lang="ar">إنذار مباشر</span></h3><p><span lang="en">A phone becomes a vibration sensor; the Operations Room opens in seconds.</span><span lang="ar">الجوال يصبح حساس اهتزاز، وتُفتح غرفة العمليات خلال ثوانٍ.</span></p></div>
+          <div class="f"><h3><span class="dot"></span><span lang="en">Reliability Brain</span><span lang="ar">عقل الموثوقية</span></h3><p><span lang="en">An 8-stage examination that grades data quality and checks the sensors themselves.</span><span lang="ar">فحص من ثماني مراحل يقيّم جودة المعطيات ويتحقق من الحساسات نفسها.</span></p></div>
+          <div class="f"><h3><span class="dot"></span><span lang="en">Live alarm</span><span lang="ar">إنذار مباشر</span></h3><p><span lang="en">When a sensor crosses its limit, the Operations Room opens in seconds.</span><span lang="ar">عندما يتجاوز الحساس حدّه، تُفتح غرفة العمليات خلال ثوانٍ.</span></p></div>
         </div>
         <a class="btn primary" href="mailto:info@yaqenai.com?subject=PlantProof%20AI%20demo"><span lang="en">Request a demo</span><span lang="ar">اطلب عرضًا تجريبيًا</span></a>
-        <p class="note"><span lang="en">The current version is a working demo built on synthetic plant data.</span><span lang="ar">النسخة الحالية نموذج تجريبي يعمل على بيانات مصنع افتراضية.</span></p>
+        <p class="note"><span lang="en">The current version is a working demo built on synthetic plant data.</span><span lang="ar">النسخة الحالية نموذج تجريبي يعمل على معطيات مصنع افتراضية.</span></p>
       </div>
       <div class="shot reveal"><img src="plantproof.jpg" alt="PlantProof AI on a monitor" loading="lazy"></div>
     </div>
 
-    <div class="gallery">
-      <figure class="g reveal" data-full="shot-ops.jpg">
-        <img src="shot-ops.jpg" alt="Operations Room screen" loading="lazy">
-        <figcaption><b><span lang="en">Operations Room</span><span lang="ar">غرفة العمليات</span></b><span><span lang="en">Likely cause, next action and what blocks a restart, on one screen.</span><span lang="ar">السبب الأرجح والإجراء التالي وما يمنع إعادة التشغيل في شاشة واحدة.</span></span></figcaption>
-      </figure>
-      <figure class="g reveal" data-full="shot-alarm.jpg">
-        <img src="shot-alarm.jpg" alt="Live alarm notification" loading="lazy">
-        <figcaption><b><span lang="en">Live alarm</span><span lang="ar">الإنذار المباشر</span></b><span><span lang="en">Abnormal vibration triggers a red alert that opens the Operations Room.</span><span lang="ar">الاهتزاز غير الطبيعي يطلق تنبيهًا أحمر يفتح غرفة العمليات.</span></span></figcaption>
-      </figure>
-      <figure class="g reveal" data-full="shot-brain.jpg">
-        <img src="shot-brain.jpg" alt="Reliability Brain examination" loading="lazy">
-        <figcaption><b><span lang="en">Reliability Brain</span><span lang="ar">عقل الموثوقية</span></b><span><span lang="en">Eight stages, from data integrity to self-verification.</span><span lang="ar">ثماني مراحل، من سلامة البيانات إلى التحقق الذاتي.</span></span></figcaption>
-      </figure>
+    <div class="viewer reveal">
+      <div class="vtabs" role="tablist">
+        <button type="button" role="tab" aria-selected="true" data-img="shot-ops.jpg" data-cap="ops"><span lang="en">Operations Room</span><span lang="ar">غرفة العمليات</span></button>
+        <button type="button" role="tab" aria-selected="false" data-img="shot-alarm.jpg" data-cap="alarm"><span lang="en">Live alarm</span><span lang="ar">الإنذار المباشر</span></button>
+        <button type="button" role="tab" aria-selected="false" data-img="shot-brain.jpg" data-cap="brain"><span lang="en">Reliability Brain</span><span lang="ar">عقل الموثوقية</span></button>
+      </div>
+      <figure class="screen" id="screen"><img src="shot-ops.jpg" alt="PlantProof AI screen" width="1997" height="1643"></figure>
+      <p class="vcap">
+        <span data-cap="ops"><span lang="en">Likely cause, next action and what blocks a restart, on one screen.</span><span lang="ar">السبب الأرجح والإجراء التالي وما يمنع إعادة التشغيل في شاشة واحدة.</span></span>
+        <span data-cap="alarm" hidden><span lang="en">A vibration above the limit raises a red alert that opens the Operations Room.</span><span lang="ar">الاهتزاز فوق الحد يطلق تنبيهًا أحمر يفتح غرفة العمليات.</span></span>
+        <span data-cap="brain" hidden><span lang="en">Eight stages, from data integrity to self-verification.</span><span lang="ar">ثماني مراحل، من سلامة المعطيات إلى التحقق الذاتي.</span></span>
+      </p>
     </div>
   </div>
 </section>
@@ -271,8 +274,8 @@
       <h2><span lang="en">Three principles behind every product</span><span lang="ar">ثلاثة مبادئ في كل منتج</span></h2>
     </div>
     <div class="cards">
-      <div class="card reveal"><div class="n">01</div><h3><span lang="en">Evidence, not guesses</span><span lang="ar">الدليل لا التخمين</span></h3><p><span lang="en">Our AI shows where each claim comes from, so anyone can check it.</span><span lang="ar">يوضح الذكاء الاصطناعي مصدر كل معلومة، ليتمكن أي شخص من التحقق منها.</span></p></div>
-      <div class="card reveal"><div class="n">02</div><h3><span lang="en">Honest about limits</span><span lang="ar">الصراحة في الحدود</span></h3><p><span lang="en">Poor or missing data is reported as such. "I don't know" is a valid answer.</span><span lang="ar">البيانات الضعيفة أو الناقصة نُعلنها كما هي، و«لا أعرف» إجابة مقبولة.</span></p></div>
+      <div class="card reveal"><div class="n">01</div><h3><span lang="en">Evidence, not guesses</span><span lang="ar">الدليل لا التخمين</span></h3><p><span lang="en">Our AI shows where each claim comes from, so anyone can check it.</span><span lang="ar">نوضح مصدر كل معلومة، ليتمكن أي شخص من التحقق منها.</span></p></div>
+      <div class="card reveal"><div class="n">02</div><h3><span lang="en">Honest about limits</span><span lang="ar">الصراحة في الحدود</span></h3><p><span lang="en">Poor or missing data is reported as such. "I don't know" is a valid answer.</span><span lang="ar">المعطيات الضعيفة أو الناقصة نُعلنها كما هي، و«لا أعرف» إجابة مقبولة.</span></p></div>
       <div class="card reveal"><div class="n">03</div><h3><span lang="en">People decide</span><span lang="ar">القرار للإنسان</span></h3><p><span lang="en">We support qualified experts. Decisions stay with the people responsible for them.</span><span lang="ar">ندعم الخبراء المؤهلين، ويبقى القرار بيد المسؤولين عنه.</span></p></div>
     </div>
   </div>
@@ -282,7 +285,7 @@
   <div class="wrap reveal">
     <div class="kicker"><span lang="en">Get in touch</span><span lang="ar">تواصل معنا</span></div>
     <h2><span lang="en">Let's talk about your operations</span><span lang="ar">لنتحدث عن عملياتك</span></h2>
-    <p class="sub"><span lang="en">Interested in PlantProof AI, or in practical AI for your business? Send us a message.</span><span lang="ar">مهتم بـ PlantProof AI أو بحلول ذكاء اصطناعي عملية لأعمالك؟ راسلنا.</span></p>
+    <p class="sub"><span lang="en">Interested in PlantProof AI, or in practical AI for your business? Send us a message.</span><span lang="ar">مهتم بـ PlantProof AI أو بحلول ذكية لأعمالك؟ راسلنا.</span></p>
     <div class="cta">
       <a class="btn primary ltr" href="mailto:info@yaqenai.com">info@yaqenai.com</a>
       <a class="btn ghost" href="https://www.linkedin.com/company/146908832/" target="_blank" rel="noopener">LinkedIn</a>
@@ -293,7 +296,7 @@
 <footer>
   <div class="wrap">
     <span>© 2026 Yaqen AI · يقين</span>
-    <span><span lang="en">Practical AI you can be certain about</span><span lang="ar">ذكاء اصطناعي عملي تثق بنتائجه</span></span>
+    <span><span lang="en">Practical AI you can be certain about</span><span lang="ar">قرارات مبنية على الدليل</span></span>
   </div>
 </footer>
 
@@ -305,7 +308,7 @@
     function setLang(l){
       root.lang=l; root.dir=(l==='ar')?'rtl':'ltr';
       document.querySelectorAll('.lang button').forEach(function(b){b.setAttribute('aria-pressed', String(b.dataset.set===l));});
-      document.title = l==='ar' ? 'يقين للذكاء الاصطناعي — ذكاء اصطناعي تثق بنتائجه' : 'Yaqen AI — Practical AI you can be certain about';
+      document.title = l==='ar' ? 'يقين | Yaqen AI — قرارات مبنية على الدليل' : 'Yaqen AI — Practical AI you can be certain about';
       try{localStorage.setItem(KEY,l);}catch(e){}
     }
     var saved=null; try{saved=localStorage.getItem(KEY);}catch(e){}
@@ -314,8 +317,14 @@
     setLang(first);
     document.querySelectorAll('.lang button').forEach(function(b){b.addEventListener('click',function(){setLang(b.dataset.set);});});
 
-    var lb=document.getElementById('lb'), lbImg=lb.querySelector('img');
-    document.querySelectorAll('.g').forEach(function(g){g.addEventListener('click',function(){lbImg.src=g.dataset.full;lbImg.alt=g.querySelector('img').alt;lb.classList.add('open');});});
+    var lb=document.getElementById('lb'), lbImg=lb.querySelector('img'), scr=document.getElementById('screen'), scrImg=scr.querySelector('img');
+    document.querySelectorAll('.vtabs button').forEach(function(b){b.addEventListener('click',function(){
+      document.querySelectorAll('.vtabs button').forEach(function(x){x.setAttribute('aria-selected',String(x===b));});
+      scrImg.src=b.dataset.img;
+      document.querySelectorAll('.vcap [data-cap]').forEach(function(c){c.hidden=(c.dataset.cap!==b.dataset.cap);});
+    });});
+    ['shot-alarm.jpg','shot-brain.jpg'].forEach(function(u){var i=new Image();i.src=u;});
+    scr.addEventListener('click',function(){lbImg.src=scrImg.src;lb.classList.add('open');});
     lb.addEventListener('click',function(){lb.classList.remove('open');});
     document.addEventListener('keydown',function(e){if(e.key==='Escape')lb.classList.remove('open');});
 

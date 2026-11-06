@@ -209,7 +209,7 @@ def assess(observations: list[Observation], train_hours: int = 18,
                             support, window_span, train_hours))
     if to_machine > to_sensor:
         support = "High" if to_machine >= 2 and to_sensor == 0 else "Medium"
-        return _with_series(TrustVerdict("machine", "The change is real: several independent signals agree",
+        return _with_series(TrustVerdict("machine", "Several independent signals agree on a real change",
                             "التغير حقيقي في المعدة: عدة مؤشرات مستقلة متفقة", None, views, clues,
                             support, window_span, train_hours))
     return _with_series(TrustVerdict("undetermined", "The signals conflict: collect one more independent check",

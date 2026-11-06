@@ -447,6 +447,35 @@ AR: dict[str, str] = {
     "Cost impact (illustrative)": "أثر التكلفة (توضيحي)",
     "What If notes": "ملاحظات ماذا لو",
     "Analyst notes": "ملاحظات المحلل",
+    # focused product: AI investigation and AI sensor trust
+    "Investigation": "التحقيق",
+    "Sensor Trust": "موثوقية الحساسات",
+    "AI sensor trust": "موثوقية الحساسات بالذكاء الاصطناعي",
+    "AI investigation": "التحقيق بالذكاء الاصطناعي",
+    "Before anyone restarts or replaces anything: is the problem in the machine, or in the sensor?":
+        "قبل أي إعادة تشغيل أو تبديل: هل المشكلة في المعدة أم في الحساس؟",
+    "Why the AI decided this": "لماذا قرر الذكاء الاصطناعي هذا",
+    "No sensor has moved from its normal behaviour.": "لم يبتعد أي حساس عن سلوكه الطبيعي.",
+    "The sensor against its peers": "الحساس مقابل باقي الحساسات",
+    "The dotted line is what the other sensors say this one should read. When the two lines split apart and the others stay calm, suspect the sensor.":
+        "الخط المنقط هو ما تتوقعه باقي الحساسات. إذا افترق الخطان وبقيت الحساسات الأخرى هادئة، فالحساس مشكوك فيه.",
+    "Every sensor, checked": "فحص كل الحساسات",
+    "How the AI decides": "كيف يقرر الذكاء الاصطناعي",
+    "The AI learns, from the first healthy hours, how every sensor normally moves with the others. A real machine fault changes several related measurements together. A faulty sensor changes its own reading while the others stay calm. The AI then weighs independent checks: handheld readings, calibration age and physical inspections.":
+        "يتعلم الذكاء الاصطناعي من الساعات الطبيعية الأولى كيف يتحرك كل حساس مع غيره. العطل الحقيقي يغيّر عدة قراءات مرتبطة معًا، والحساس المعطوب يغيّر قراءته وحده. ثم يوازن الفحوصات المستقلة: القراءات اليدوية وعمر المعايرة والفحص الميداني.",
+    "Decision support for a qualified engineer. Not a confirmed diagnosis.":
+        "دعم قرار لمهندس مؤهل، وليس تشخيصًا مؤكدًا.",
+    "Open the Reliability Brain": "افتح عقل الموثوقية",
+    "The likely cause, the evidence for it, and what must be resolved before restart.":
+        "السبب الأرجح، والدليل عليه، وما يجب حسمه قبل إعادة التشغيل.",
+    "The AI suspects the sensor. Confirm the instrument before acting on the causes below.":
+        "الذكاء الاصطناعي يشك في الحساس. تأكد من جهاز القياس قبل العمل على الأسباب أدناه.",
+    "No missing evidence.": "لا توجد أدلة ناقصة.",
+    "Show all tools": "إظهار كل الأدوات",
+    "AI that proves, not guesses: machine or sensor, with evidence":
+        "ذكاء اصطناعي يثبت ولا يخمّن: المعدة أم الحساس، بالدليل",
+    "Synthetic demo data only · The AI runs inside the app: no external AI service or API keys.":
+        "بيانات تجريبية افتراضية فقط · الذكاء الاصطناعي يعمل داخل المنصة دون خدمات أو مفاتيح خارجية.",
 }
 
 

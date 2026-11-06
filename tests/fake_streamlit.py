@@ -124,7 +124,8 @@ class FakeStreamlit:
     def radio(self, label, options, index=0, format_func=None, key=None, **kw):
         options = list(options)
         self._fmt(options, format_func)
-        return self._override(label, key, options[index])
+        # index=None: nothing selected until the user picks, as in Streamlit
+        return self._override(label, key, options[index] if index is not None else None)
 
     def selectbox(self, label, options, index=0, format_func=None, key=None, **kw):
         options = list(options)

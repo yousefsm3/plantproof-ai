@@ -109,6 +109,7 @@ def reliability_enabled() -> bool:
         return False
 
 from plantproof import (__version__, advisor, blind_test, cost_model, early_warning, fact_check,
+                        sensor_trust,
                         handover, whatif)
 from plantproof.domain import (SOURCE_TYPES, AnalysisResult, ConfigError, EngineConfig,
                                Finding, Observation, load_engine_config,
@@ -122,6 +123,10 @@ st.set_page_config(page_title="PlantProof AI", page_icon=str(Path(__file__).reso
 
 PAGES = ("Overview", "AI Early Warning", "Evidence", "AI Fact Check", "Live Sensor", "What If",
          "Blind Test", "Cost", "History", "Handover")
+INV = "Investigation"      # focused product: the AI investigation of one trip
+TRUST = "Sensor Trust"     # focused product: machine or sensor?
+FOCUS_PAGES = (INV, TRUST, "Live Sensor")              # what the sidebar shows by default
+MORE_PAGES = tuple(p for p in PAGES if p != "Live Sensor")   # hidden until "Show all tools"
 ADVISOR = "Advisor"   # opened from its own highlighted button, not from the page list
 OPS = "Operations Room"   # also opened from its own red button (and by the live alarm)
 RB = "Reliability Brain"  # opened from its own button; present only when the feature flag is on
@@ -131,7 +136,8 @@ PAGE_ICONS = {"Overview": ":material/dashboard:", "Evidence": ":material/manage_
               "Cost": ":material/payments:", "History": ":material/history:",
               "Handover": ":material/sync_alt:", "AI Early Warning": ":material/monitor_heart:",
               "AI Fact Check": ":material/verified:", "Live Sensor": ":material/sensors:",
-              "Operations Room": ":material/crisis_alert:", "Reliability Brain": ":material/biotech:"}
+              "Operations Room": ":material/crisis_alert:", "Reliability Brain": ":material/biotech:",
+              INV: ":material/troubleshoot:", TRUST: ":material/sensors_krx:"}
 LINKEDIN_URL = "https://www.linkedin.com/company/146908832/"   # Yaqen AI public company page
 APP_URL = "https://plantproof-ai.streamlit.app"
 PARAM_LABELS = {"vibration_mm_s": "Vibration (mm/s)", "bearing_temp_c": "Bearing temp (°C)",
@@ -477,10 +483,13 @@ def page_overview(ctx: Ctx) -> None:
 
 
 def page_evidence(ctx: Ctx) -> None:
-    r = ctx.result
     page_header(PAGE_ICONS["Evidence"], "Evidence engine",
                 "Every conclusion below links to the source record IDs it is based on.")
+    _evidence_body(ctx)
 
+
+def _evidence_body(ctx: Ctx) -> None:
+    r = ctx.result
     st.subheader(bi("Hypothesis ranking"))
     st.caption(gray("كل فرضية بسطر واحد. اضغط عليها للتفاصيل."))
 
@@ -920,6 +929,126 @@ def _ops_advisor(ctx: Ctx) -> None:
                 st.button(bi("Open the full answer"), key="pp_ops_more", on_click=open_advisor)
 
 
+# ------------------------------------------------------------------ AI sensor trust
+VERDICT_LOOK = {   # verdict -> (tone, English title, Arabic title)
+    "machine": ("crit", "Machine fault: the change is real", "عطل حقيقي في المعدة"),
+    "sensor": ("warn", "Sensor suspected: check the instrument first", "الحساس مشكوك فيه: افحصه أولًا"),
+    "normal": ("ok", "No fault: sensors agree", "لا يوجد عطل: الحساسات متوافقة"),
+    "undetermined": ("info", "Cannot decide yet: collect one more check", "لا يمكن الحكم بعد"),
+}
+SUPPORT_AR = {"High": "قوية", "Medium": "متوسطة", "Low": "ضعيفة"}
+
+
+def trust_for(sid: str, obs) -> sensor_trust.TrustVerdict:
+    """AI sensor trust for the scenario on screen (a few milliseconds, so not cached)."""
+    return sensor_trust.assess(list(obs))
+
+
+def trust_banner(v: sensor_trust.TrustVerdict) -> None:
+    """The one question the platform answers first: is it the machine or the sensor?"""
+    e = html.escape
+    tone, title, title_ar = VERDICT_LOOK[v.verdict]
+    st.markdown(
+        f'<div class="pp-banner {tone}"><div class="s" style="margin:0 0 4px;font-weight:700;'
+        f'letter-spacing:.4px">AI VERDICT · MACHINE OR SENSOR? · حكم الذكاء: المعدة أم الحساس؟</div>'
+        f'<div class="t">{e(title)}</div>'
+        f'<div class="s">{e(v.headline)} · evidence strength {e(v.support)}</div>'
+        f'<div class="a">{e(title_ar)} · {e(v.headline_ar)} · قوة الدليل {e(SUPPORT_AR[v.support])}</div>'
+        f'</div>', unsafe_allow_html=True)
+
+
+def trust_chart(v: sensor_trust.TrustVerdict) -> go.Figure:
+    sr = v.series
+    p = sr["parameter"]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=sr["time"], y=sr["predicted"], name="What the other sensors predict · ما تتوقعه باقي الحساسات",
+                             line=dict(color=ui_theme.TOKENS["info"], dash="dot", width=2)))
+    fig.add_trace(go.Scatter(x=sr["time"], y=sr["actual"], name="What this sensor reports · ما يقرؤه الحساس",
+                             line=dict(color=ui_theme.TOKENS["warn"] if v.verdict == "sensor"
+                                       else ui_theme.TOKENS["crit"], width=2.5)))
+    if v.train_hours and len(sr["time"]) > v.train_hours:
+        fig.add_vrect(x0=sr["time"][0], x1=sr["time"][v.train_hours - 1],
+                      fillcolor=ui_theme.TOKENS["ok"], opacity=0.07, line_width=0,
+                      annotation_text="AI learned normal here · تعلّم الطبيعي",
+                      annotation_position="top left")
+    return ui_theme.style_fig(fig, 320, None, PARAM_LABELS.get(p, p), legend=True)
+
+
+def page_sensor_trust(ctx: Ctx) -> None:
+    page_header(PAGE_ICONS[TRUST], "AI sensor trust",
+                "Before anyone restarts or replaces anything: is the problem in the machine, or in the sensor?")
+    v = trust_for(ctx.sid, tuple(ctx.obs))
+    trust_banner(v)
+
+    st.subheader(bi("Why the AI decided this"))
+    if not v.clues:
+        st.info(with_ar("No sensor has moved from its normal behaviour."))
+    for c in v.clues:
+        tone = ":orange[**Points to the sensor**]" if c.points_to == "sensor" else ":red[**Points to the machine**]"
+        tone_ar = "يشير إلى الحساس" if c.points_to == "sensor" else "يشير إلى المعدة"
+        with st.container(border=True):
+            st.markdown(f"{tone} {gray(tone_ar)}  \n{c.text}  \n{gray(c.text_ar)}")
+            st.caption(f"{bi('Source records')}: {ids_text(c.record_ids)}")
+
+    if v.series:
+        p = v.series["parameter"]
+        st.subheader(bi("The sensor against its peers"))
+        st.caption(with_ar("The dotted line is what the other sensors say this one should read. "
+                           "When the two lines split apart and the others stay calm, suspect the sensor."))
+        st.plotly_chart(trust_chart(v), use_container_width=True,
+                        key=f"trust_chart_{ctx.sid}_{p}")
+
+    if v.sensors:
+        st.subheader(bi("Every sensor, checked"))
+        rows = [{"Sensor · الحساس": f"{PARAM_LABELS.get(x.parameter, x.parameter)} · "
+                                    f"{sensor_trust.LABELS_AR.get(x.parameter, '')}",
+                 "Moved from normal (z) · الابتعاد عن الطبيعي": x.own_z,
+                 "Disagrees with peers (z) · الاختلاف مع الحساسات": x.peer_z if x.moved else None,
+                 "Status · الحالة": ("Suspect · مشكوك" if v.suspect == x.parameter
+                                      else "Moved · تغيّر" if x.moved else "Normal · طبيعي")}
+                for x in v.sensors]
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+
+    with st.expander(bi("How the AI decides")):
+        st.markdown(with_ar(
+            "The AI learns, from the first healthy hours, how every sensor normally moves with the "
+            "others. A real machine fault changes several related measurements together. A faulty "
+            "sensor changes its own reading while the others stay calm. The AI then weighs "
+            "independent checks: handheld readings, calibration age and physical inspections."))
+        st.caption(with_ar("Decision support for a qualified engineer. Not a confirmed diagnosis."))
+    if reliability_enabled():
+        st.button(f"{PAGE_ICONS[RB]} {bi('Open the Reliability Brain')}", key="trust_open_rb",
+                  on_click=open_view, args=(RB,))
+
+
+def page_investigation(ctx: Ctx) -> None:
+    r, top = ctx.result, ctx.result.top
+    page_header(PAGE_ICONS[INV], "AI investigation",
+                "The likely cause, the evidence for it, and what must be resolved before restart.")
+    v = trust_for(ctx.sid, tuple(ctx.obs))
+    trust_banner(v)
+    est = cost_model.estimate(top.hypothesis_id, ctx.costs).totals if top else None
+    tiles([
+        ops_tile("Most likely cause", top.name if top else "Undetermined",
+                 f"{pct(top.confidence)} evidence-based confidence" if top else "",
+                 ar(top.name) if top else "", "brand" if top and top.confidence_label == "High" else "warn",
+                 small=True),
+        ops_tile("Contradictions", str(len(r.contradictions)), "records disagree", "سجلات متعارضة",
+                 "crit" if r.contradictions else "ok", small=True),
+        ops_tile("Missing evidence", str(len(r.missing)), "checks not done", "فحوصات ناقصة",
+                 "warn" if r.missing else "ok", small=True),
+        ops_tile("Financial exposure", money(est["base"], ctx) if est else "—",
+                 f"range {money(est['low'], ctx)} to {money(est['high'], ctx)}" if est else "",
+                 "توضيحية", "neutral", small=True),
+    ])
+    if v.verdict == "sensor":
+        st.warning(with_ar("The AI suspects the sensor. Confirm the instrument before acting "
+                           "on the causes below."), icon=":material/sensors_krx:")
+    st.subheader(bi("Missing evidence"))
+    headlines(r.missing, "inv_m", "No missing evidence.")
+    _evidence_body(ctx)
+
+
 def page_ops_room(ctx: Ctx) -> None:
     r, top = ctx.result, ctx.result.top
     alarm = st.session_state.get("pp_live_alarm")
@@ -951,10 +1080,14 @@ def page_ops_room(ctx: Ctx) -> None:
                 f'<div class="a">{e(sub_ar)}</div></div>', unsafe_allow_html=True)
     if alarm:
         b2.button(f":material/done: {bi('Acknowledge')}", key="pp_ack", on_click=ack_alarm)
+    verdict = trust_for(ctx.sid, tuple(ctx.obs))
+    trust_banner(verdict)
 
     # 2. the three things to know first
     checks = advisor.next_best_checks(ctx.obs, ctx.cfg, r)
     nxt = checks[0] if checks else None
+    if verdict.verdict == "sensor":     # never send a crew to the machine for a lying sensor
+        nxt = {"title": verdict.headline, "title_ar": verdict.headline_ar, "impact": 0.0}
     blockers = len(r.contradictions) + len(r.missing)
     ew = early_warning.detect(list(ctx.obs), ctx.cfg.limits)
     lead_tone = "brand" if top and top.confidence_label == "High" else "warn" if top else "neutral"
@@ -963,7 +1096,8 @@ def page_ops_room(ctx: Ctx) -> None:
                  f"{pct(top.confidence)} evidence-based confidence · {why_line(top)[0]}" if top else "",
                  ar(top.name) if top else "", lead_tone, small=True),
         ops_tile("Next recommended action", nxt["title"] if nxt else "Continue monitoring",
-                 (f"would change the conclusion by up to {nxt['impact']:.2f}" if nxt else ""),
+                 (f"would change the conclusion by up to {nxt['impact']:.2f}" if nxt and nxt["impact"]
+                  else "AI sensor trust" if nxt else ""),
                  nxt["title_ar"] if nxt else "", "warn" if nxt else "ok", small=True),
         ops_tile("Before restart", f"{blockers} open item(s)" if blockers else "Nothing open",
                  f"{len(r.contradictions)} conflicting · {len(r.missing)} missing", "قبل إعادة التشغيل",
@@ -1483,7 +1617,7 @@ def main() -> None:
 
     inject_theme()
     sidebar_brand()
-    st.sidebar.caption(with_ar("Evidence-first investigations for plant incidents"))
+    st.sidebar.caption(with_ar("AI that proves, not guesses: machine or sensor, with evidence"))
     st.sidebar.button(f"{PAGE_ICONS[OPS]} Operations Room :small[غرفة العمليات]", key="pp_ops_side",
                       on_click=open_ops_room)
     rb_on = reliability_enabled()
@@ -1498,18 +1632,28 @@ def main() -> None:
             st.session_state["page"] = "Live Sensor"
     except Exception:
         pass
-    nav = st.sidebar.radio(bi("Navigate"), PAGES, key="page", on_change=close_advisor,
+    ss = st.session_state
+    if ss.get("page") in MORE_PAGES:              # a hidden tool asked for by name: show all tools
+        ss["pp_more"] = True
+    options = FOCUS_PAGES + (MORE_PAGES if ss.get("pp_more") else ())
+    if ss.get("page") is not None and ss.get("page") not in options:
+        ss["page"] = None
+    nav = st.sidebar.radio(bi("Navigate"), options, key="page", on_change=close_advisor, index=None,
                            format_func=lambda p: f"{PAGE_ICONS[p]} {bi(p)}")
-    view = st.session_state.get("view")
-    page = view if view in (ADVISOR, OPS) or (view == RB and rb_on) else (nav or "Overview")
+    view = ss.get("view")
+    # nothing chosen yet (a fresh visit): the Operations Room is the front door
+    page = view if view in (ADVISOR, OPS) or (view == RB and rb_on) else (nav or OPS)
     titles = {s["id"]: s["title"] for s in index}
     sid = st.sidebar.selectbox(bi("Scenario"), list(titles),
                                format_func=lambda k: bi_plain(titles[k]), key="scenario")
     with st.sidebar.expander(bi("About this demo")):
+        st.toggle(bi("Show all tools"), key="pp_more",
+                  help="Overview, early warning, evidence, fact check, What If, blind test, cost, "
+                       "history and handover. Hidden to keep the platform focused.")
         st.warning(with_ar(PERSISTENCE_SHORT), icon=":material/save:")
         st.caption(f"v{__version__} · "
-                   + with_ar("Synthetic demo data only · Rule-based analysis, "
-                             "no external AI or API keys."))
+                   + with_ar("Synthetic demo data only · The AI runs inside the app: "
+                             "no external AI service or API keys."))
         st.caption(f"{DISCLAIMER}  \n{gray(DISCLAIMER_AR)}")
 
     meta = next(s for s in index if s["id"] == sid)
@@ -1530,7 +1674,8 @@ def main() -> None:
              "Blind Test": page_blind_test, "Cost": page_cost, "History": page_history,
              "Handover": page_handover, "AI Early Warning": page_early_warning,
              "AI Fact Check": page_fact_check, "Live Sensor": page_live_sensor,
-             "Operations Room": page_ops_room, RB: page_reliability}
+             "Operations Room": page_ops_room, RB: page_reliability,
+             INV: page_investigation, TRUST: page_sensor_trust}
     try:
         pages[page](ctx)
     except Exception as exc:   # one page failing must never take the platform down

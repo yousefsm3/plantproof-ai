@@ -40,7 +40,7 @@ jobs:
       - name: Check pages
         env:
           SHOTS: "1"
-          PAGES: ${{ matrix.flag == '1' && 'Overview,Operations Room,Reliability Brain,AI Early Warning,Evidence,AI Fact Check,Live Sensor,What If,Blind Test,Cost,History,Handover' || 'Overview,Operations Room,AI Early Warning,Evidence,AI Fact Check,Live Sensor,What If,Blind Test,Cost,History,Handover' }}
+          PAGES: ${{ matrix.flag == '1' && 'Operations Room,Investigation,Sensor Trust,Reliability Brain,Live Sensor' || 'Operations Room,Investigation,Sensor Trust,Live Sensor' }}
         run: python scripts/ui_preview.py
       - name: Server log
         if: always()

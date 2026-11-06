@@ -276,6 +276,36 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("not guaranteed to persist", warnings)
         self.assertTrue(any(c[0] == "download_button" for c in fake.calls))
 
+    # ------------------------------------------------ focused product
+    def test_fresh_visit_lands_in_ops_room_with_ai_verdict(self):
+        fake = self.run_app({"scenario": "B"}, session=SessionState())
+        text = " ".join(str(c[1]) for c in fake.calls)
+        self.assertIn("Operations Room", text)
+        self.assertIn("MACHINE OR SENSOR?", text)
+        self.assertIn("Sensor suspected", text)
+        self.assertEqual(self.errors(fake), [])
+
+    def test_focused_pages_render_for_every_scenario(self):
+        for sid in ("A", "B", "C"):
+            for page in ("Investigation", "Sensor Trust"):
+                for press in (False, True):
+                    with self.subTest(sid=sid, page=page, press=press):
+                        fake = self.run_app({"page": page, "scenario": sid}, press)
+                        self.assertEqual(self.errors(fake), [])
+                        text = " ".join(str(c[1]) for c in fake.calls)
+                        self.assertIn("MACHINE OR SENSOR?", text)
+
+    def test_hidden_tools_are_not_in_the_menu_by_default(self):
+        import ast
+        tree = ast.parse(APP.read_text(encoding="utf-8"))
+        focus = next(n for n in ast.walk(tree) if isinstance(n, ast.Assign)
+                     and getattr(n.targets[0], "id", "") == "FOCUS_PAGES")
+        names = ast.unparse(focus.value)
+        self.assertIn("INV", names)
+        self.assertIn("TRUST", names)
+        self.assertNotIn("Blind Test", names)
+        fake = self.run_app({"page": "Blind Test", "scenario": "A"})   # still reachable by name
+        self.assertEqual(self.errors(fake), [])
 
 if __name__ == "__main__":
     unittest.main()
